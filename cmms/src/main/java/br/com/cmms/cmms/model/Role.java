@@ -3,6 +3,7 @@ package br.com.cmms.cmms.model;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "roles")
 public class Role {
 
     @Id
@@ -10,10 +11,25 @@ public class Role {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String nome; // ROLE_ADMIN, ROLE_USER
+    private String nome;
+
+    public Role() {
+    }
+
+    public Role(String nome) {
+        this.nome = nome;
+    }
+
+    public Long getId() {
+        return id;
+    }
 
     public String getNome() {
         return nome;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public void setNome(String nome) {
