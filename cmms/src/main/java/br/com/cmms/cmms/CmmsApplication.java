@@ -10,11 +10,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.repository.RoleRepository;
 
+import java.util.Collections;
+
 @SpringBootApplication
 public class CmmsApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(CmmsApplication.class, args);
+        SpringApplication app = new SpringApplication(CmmsApplication.class);
+        String port = System.getenv("PORT");
+        if (port != null) {
+            app.setDefaultProperties(Collections.singletonMap("server.port", port));
+        }
+        app.run(args);
     }
 
     @Bean
