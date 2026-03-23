@@ -46,6 +46,14 @@ public class Usuario implements UserDetails {
 
     // ===== SPRING SECURITY =====
 
+    public String getSenha() {
+        return senha;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.getNome()));

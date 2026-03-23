@@ -44,7 +44,6 @@ public class CmmsApplication {
                         return roleRepository.save(newRole);
                     });
 
-            // 2. Criar admin se não existir
             String emailAdmin = "admin@email.com";
 
             if (usuarioRepository.findByEmail(emailAdmin).isEmpty()) {

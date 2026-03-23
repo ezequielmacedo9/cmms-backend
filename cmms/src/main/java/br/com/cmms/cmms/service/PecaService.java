@@ -79,9 +79,9 @@ public class PecaService {
         dto.setId(peca.getId());
         dto.setNome(peca.getNome());
         dto.setCodigo(peca.getCodigo());
-        dto.setQuantidadeEmEstoque(peca.getQuantidadeEmEstoque());
-        dto.setCustoUnitario(peca.getCustoUnitario());
-        dto.setVidaUtilHoras(peca.getVidaUtilHoras());
+        dto.setQuantidadeEmEstoque(Integer.valueOf(peca.getQuantidadeEmEstoque()));
+        dto.setCustoUnitario(Double.valueOf(peca.getCustoUnitario()));
+        dto.setVidaUtilHoras(Integer.valueOf(peca.getVidaUtilHoras()));
         return dto;
     }
 }

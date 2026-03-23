@@ -1,8 +1,10 @@
 package br.com.cmms.cmms.repository;
 
 import br.com.cmms.cmms.model.RefreshToken;
-import br.com.cmms.cmms.model.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -11,5 +13,7 @@ public interface RefreshTokenRepository
 
     Optional<RefreshToken> findByToken(String token);
 
-    void deleteByUsuario(Usuario usuario);
+    @Modifying
+    @Query("DELETE FROM RefreshToken rt WHERE rt.usuario.id = :usuarioId")
+    void deleteByUsuarioId(@Param("usuarioId") Long usuarioId);
 }

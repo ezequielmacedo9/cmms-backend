@@ -1,6 +1,7 @@
 package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.Security.JwtService;
+import br.com.cmms.cmms.Security.UserDetailsImpl;
 import br.com.cmms.cmms.dto.LoginRequestDTO;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
 import br.com.cmms.cmms.model.RefreshToken;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -47,7 +48,8 @@ public class AuthController {
                 )
         );
 
-        Usuario usuario = (Usuario) auth.getPrincipal();
+        UserDetailsImpl userDetails = (UserDetailsImpl) auth.getPrincipal();
+        Usuario usuario = userDetails.getUsuario();
 
         String accessToken = jwtService.gerarToken(usuario);
         String refreshToken =

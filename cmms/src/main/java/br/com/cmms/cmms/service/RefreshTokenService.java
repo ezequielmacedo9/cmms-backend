@@ -3,12 +3,14 @@ package br.com.cmms.cmms.service;
 import br.com.cmms.cmms.model.RefreshToken;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.RefreshTokenRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
+@Transactional
 @Service
 public class RefreshTokenService {
 
@@ -18,9 +20,12 @@ public class RefreshTokenService {
         this.repository = repository;
     }
 
+
+    @Transactional
     public RefreshToken criarRefreshToken(Usuario usuario) {
 
-        repository.deleteByUsuario(usuario);
+        repository.deleteByUsuarioId(usuario.getId());
+        repository.flush();
 
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUsuario(usuario);

@@ -18,9 +18,9 @@ public class PecaResponseDTO {
         this.id = peca.getId();
         this.nome = peca.getNome();
         this.codigo = peca.getCodigo();
-        this.quantidadeEmEstoque = peca.getQuantidadeEmEstoque();
-        this.custoUnitario = peca.getCustoUnitario();
-        this.vidaUtilHoras = peca.getVidaUtilHoras();
+        this.quantidadeEmEstoque = (Integer) peca.getQuantidadeEmEstoque();
+        this.custoUnitario = (Double) peca.getCustoUnitario();
+        this.vidaUtilHoras = (Integer) peca.getVidaUtilHoras();
     }
 
 

@@ -54,7 +54,7 @@ public class Manutencao {
 
     // 🔹 GETTERS / SETTERS
     public Long getId() {
-        return id;
+        return (Long) id;
     }
 
     public String getTipo() {

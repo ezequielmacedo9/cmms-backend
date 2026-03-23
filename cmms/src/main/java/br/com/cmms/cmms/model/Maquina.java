@@ -28,7 +28,7 @@ public class Maquina {
     @Column(nullable = false)
     private String status;
 
-    private Integer intervaloPreventivaDias = 0;
+    private Integer intervaloPreventivaDias = (Integer) 0;
 
 
     @OneToMany(
@@ -92,7 +92,7 @@ public class Maquina {
     }
 
     public void setIntervaloPreventivaDias(int intervaloPreventivaDias) {
-        this.intervaloPreventivaDias = intervaloPreventivaDias;
+        this.intervaloPreventivaDias = (Integer) intervaloPreventivaDias;
     }
 
     public List<Manutencao> getListaDeManutencoes() {

@@ -92,13 +92,13 @@ public class MenuPrincipal {
         dto.setCodigo(scanner.nextLine());
 
         System.out.print("Quantidade em estoque: ");
-        dto.setQuantidadeEmEstoque(scanner.nextInt());
+        dto.setQuantidadeEmEstoque(Integer.valueOf(scanner.nextInt()));
 
         System.out.print("Custo unitário: ");
-        dto.setCustoUnitario(scanner.nextDouble());
+        dto.setCustoUnitario(Double.valueOf(scanner.nextDouble()));
 
         System.out.print("Vida útil (horas): ");
-        dto.setVidaUtilHoras(scanner.nextInt());
+        dto.setVidaUtilHoras(Integer.valueOf(scanner.nextInt()));
         scanner.nextLine();
 
         PecaResponseDTO resposta = pecaService.cadastrar(dto);
@@ -138,16 +138,16 @@ public class MenuPrincipal {
         dto.setCodigo(scanner.nextLine());
 
         System.out.print("Nova quantidade: ");
-        dto.setQuantidadeEmEstoque(scanner.nextInt());
+        dto.setQuantidadeEmEstoque(Integer.valueOf(scanner.nextInt()));
 
         System.out.print("Novo custo unitário: ");
-        dto.setCustoUnitario(scanner.nextDouble());
+        dto.setCustoUnitario(Double.valueOf(scanner.nextDouble()));
 
         System.out.print("Nova vida útil (horas): ");
-        dto.setVidaUtilHoras(scanner.nextInt());
+        dto.setVidaUtilHoras(Integer.valueOf(scanner.nextInt()));
         scanner.nextLine();
 
-        PecaResponseDTO atualizada = pecaService.atualizar(id, dto);
+        PecaResponseDTO atualizada = pecaService.atualizar(Long.valueOf(id), dto);
         System.out.println("Peça atualizada com sucesso! ID: " + atualizada.getId());
     }
 
@@ -156,7 +156,7 @@ public class MenuPrincipal {
         long id = scanner.nextLong();
         scanner.nextLine();
 
-        pecaService.deletar(id);
+        pecaService.deletar(Long.valueOf(id));
         System.out.println("Peça deletada com sucesso!");
     }
 
@@ -205,7 +205,7 @@ public class MenuPrincipal {
         long id = scanner.nextLong();
         scanner.nextLine();
 
-        Maquina maquina = maquinaService.buscarPorId(id);
+        Maquina maquina = maquinaService.buscarPorId(Long.valueOf(id));
         if (maquina == null) {
             System.out.println("Máquina não encontrada.");
             return;
@@ -214,7 +214,7 @@ public class MenuPrincipal {
         System.out.print("Novo nome: ");
         maquina.setNome(scanner.nextLine());
 
-        maquinaService.atualizar(id, maquina);
+        maquinaService.atualizar(Long.valueOf(id), maquina);
         System.out.println("Máquina atualizada!");
     }
 
@@ -223,7 +223,7 @@ public class MenuPrincipal {
         long id = scanner.nextLong();
         scanner.nextLine();
 
-        maquinaService.deletar(id);
+        maquinaService.deletar(Long.valueOf(id));
         System.out.println("Máquina deletada!");
     }
 }
