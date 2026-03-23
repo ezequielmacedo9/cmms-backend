@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY . .
 
+WORKDIR /app/cmms
+
 RUN mvn clean package -DskipTests
 
 EXPOSE 10000
