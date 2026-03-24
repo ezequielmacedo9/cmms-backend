@@ -1,26 +1,11 @@
-FROM maven:3.9.9-eclipse-temurin-17 AS build
-
+FROM eclipse-temurin:17-jdk-alpine AS build
 WORKDIR /app
+COPY cmms/ .
+RUN chmod +x mvnw
+RUN ./mvnw clean package -DskipTests
 
-COPY . .
-
-
-RUN if [ -f /app/pom.xml ]; then \
-        cd /app && mvn clean package -DskipTests; \
-    elif [ -f /app/cmms/pom.xml ]; then \
-        cd /app/cmms && mvn clean package -DskipTests; \
-    elif [ -f /app/cmms/_mvn/src/pom.xml ]; then \
-        cd /app/cmms/_mvn/src && mvn clean package -DskipTests; \
-    else echo "ERRO: pom.xml não encontrado"; exit 1; fi
-
-
-FROM eclipse-temurin:17-jre
-
+FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-
-# Copiar o JAR do build
-COPY --from=build /app/cmms/_mvn/src/target/cmms-0.0.1-SNAPSHOT.jar ./cmms-0.0.1-SNAPSHOT.jar
-
+COPY --from=build /app/target/cmms-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 10000
-
-CMD ["java", "-jar", "cmms-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
