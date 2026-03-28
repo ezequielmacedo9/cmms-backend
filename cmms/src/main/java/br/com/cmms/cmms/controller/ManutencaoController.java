@@ -16,7 +16,7 @@ public class ManutencaoController {
     private ManutencaoService manutencaoService;
 
     @PostMapping("/{maquinaId}")
-    public ResponseEntity<Manutencao> registrar(
+    public ResponseEntity<Manutencao> cadastrar(
             @PathVariable Long maquinaId,
             @RequestBody Manutencao manutencao
     ) {
@@ -26,5 +26,16 @@ public class ManutencaoController {
     @GetMapping
     public ResponseEntity<List<Manutencao>> listar() {
         return ResponseEntity.ok(manutencaoService.listar());
+    }
+
+    @GetMapping("/maquina/{maquinaId}")
+    public ResponseEntity<List<Manutencao>> listarPorMaquina(@PathVariable Long maquinaId) {
+        return ResponseEntity.ok(manutencaoService.listarPorMaquina(maquinaId));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        manutencaoService.deletar(id);
+        return ResponseEntity.noContent().build();
     }
 }

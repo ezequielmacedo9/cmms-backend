@@ -4,67 +4,56 @@ import br.com.cmms.cmms.dto.PecaRequestDTO;
 import br.com.cmms.cmms.dto.PecaResponseDTO;
 import br.com.cmms.cmms.model.Peca;
 import br.com.cmms.cmms.repository.PecaRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class PecaService {
 
+    private static final Logger log = LoggerFactory.getLogger(PecaService.class);
+
     @Autowired
     private PecaRepository pecaRepository;
 
+    @Transactional
     public PecaResponseDTO cadastrar(PecaRequestDTO dto) {
         Peca peca = new Peca();
-
-        peca.setNome(dto.getNome());
-        peca.setCodigo(dto.getCodigo());
-        peca.setQuantidadeEmEstoque(dto.getQuantidadeEmEstoque());
-        peca.setCustoUnitario(dto.getCustoUnitario());
-        peca.setVidaUtilHoras(dto.getVidaUtilHoras());
-
-        Peca salva = pecaRepository.save(peca);
-
-        return new PecaResponseDTO(salva);
+        copiarDtoParaEntity(dto, peca);
+        log.info("Cadastrando peça: {}", dto.getNome());
+        return toResponseDTO(pecaRepository.save(peca));
     }
 
-
-    // READ ALL
     public List<PecaResponseDTO> listar() {
-        return pecaRepository.findAll()
-                .stream()
-                .map(this::toResponseDTO)
-                .toList();
+        return pecaRepository.findAll().stream().map(this::toResponseDTO).toList();
     }
 
-    // READ BY ID
     public PecaResponseDTO buscarPorId(Long id) {
-        Peca peca = pecaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Peça não encontrada"));
-        return toResponseDTO(peca);
+        return toResponseDTO(pecaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Peça não encontrada: " + id)));
     }
 
-    // UPDATE
+    @Transactional
     public PecaResponseDTO atualizar(Long id, PecaRequestDTO dto) {
         Peca peca = pecaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Peça não encontrada"));
-
+            .orElseThrow(() -> new RuntimeException("Peça não encontrada: " + id));
         copiarDtoParaEntity(dto, peca);
-        Peca atualizada = pecaRepository.save(peca);
-
-        return toResponseDTO(atualizada);
+        log.info("Atualizando peça id={}", id);
+        return toResponseDTO(pecaRepository.save(peca));
     }
 
-    // DELETE
+    @Transactional
     public void deletar(Long id) {
         if (!pecaRepository.existsById(id)) {
-            throw new RuntimeException("Peça não encontrada");
+            throw new RuntimeException("Peça não encontrada: " + id);
         }
+        log.info("Deletando peça id={}", id);
         pecaRepository.deleteById(id);
     }
-
-
 
     private void copiarDtoParaEntity(PecaRequestDTO dto, Peca peca) {
         peca.setNome(dto.getNome());

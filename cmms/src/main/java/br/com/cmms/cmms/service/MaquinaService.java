@@ -2,32 +2,41 @@ package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 public class MaquinaService {
 
+    private static final Logger log = LoggerFactory.getLogger(MaquinaService.class);
+
     @Autowired
     private MaquinaRepository maquinaRepository;
 
-    public Maquina cadastrar(Maquina maquina){
+    @Transactional
+    public Maquina cadastrar(Maquina maquina) {
+        log.info("Cadastrando máquina: {}", maquina.getNome());
         return maquinaRepository.save(maquina);
     }
 
-    public List<Maquina> listar(){
+    public List<Maquina> listar() {
         return maquinaRepository.findAll();
     }
 
-    public Maquina buscarPorId(Long id){
-        return maquinaRepository.findById(id).orElse(null);
+    public Maquina buscarPorId(Long id) {
+        return maquinaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
     }
 
-    public Maquina atualizar(Long id, Maquina maquina){
+    @Transactional
+    public Maquina atualizar(Long id, Maquina maquina) {
         Maquina existente = maquinaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Máquina não encontrada"));
+            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
 
         existente.setNome(maquina.getNome());
         existente.setSetor(maquina.getSetor());
@@ -35,10 +44,13 @@ public class MaquinaService {
         existente.setIntervaloPreventivaDias(maquina.getIntervaloPreventivaDias());
         existente.setDataUltimaManutencao(maquina.getDataUltimaManutencao());
 
+        log.info("Atualizando máquina id={}", id);
         return maquinaRepository.save(existente);
     }
 
-    public void deletar(Long id){
+    @Transactional
+    public void deletar(Long id) {
+        log.info("Deletando máquina id={}", id);
         maquinaRepository.deleteById(id);
     }
 }
