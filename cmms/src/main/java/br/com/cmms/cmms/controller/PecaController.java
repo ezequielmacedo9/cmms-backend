@@ -4,7 +4,6 @@ import br.com.cmms.cmms.dto.PecaRequestDTO;
 import br.com.cmms.cmms.dto.PecaResponseDTO;
 import br.com.cmms.cmms.service.PecaService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,8 +13,11 @@ import java.util.List;
 @RequestMapping("/api/pecas")
 public class PecaController {
 
-    @Autowired
-    private PecaService pecaService;
+    private final PecaService pecaService;
+
+    public PecaController(PecaService pecaService) {
+        this.pecaService = pecaService;
+    }
 
     @PostMapping
     public ResponseEntity<PecaResponseDTO> cadastrar(@RequestBody PecaRequestDTO dto) {

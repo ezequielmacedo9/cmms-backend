@@ -5,6 +5,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -15,15 +17,19 @@ import java.util.Date;
 @Service
 public class JwtService {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtService.class);
+
     @Value("${jwt.secret}")
     private String secret;
+
+    @Value("${jwt.expiration:86400000}")
+    private long expiration;
 
     private SecretKey getSignKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             throw new IllegalArgumentException(
-                    "Chave JWT inválida! Deve ter pelo menos 32 bytes (256 bits). Atual: " + keyBytes.length + " bytes. " +
-                            "Atualize jwt.secret no application.properties para uma string mais longa."
+                    "JWT secret must be at least 32 bytes. Current length: " + keyBytes.length
             );
         }
         return Keys.hmacShaKeyFor(keyBytes);
@@ -31,10 +37,10 @@ public class JwtService {
 
     public String gerarToken(Usuario usuario) {
         return Jwts.builder()
-                .setSubject(usuario.getEmail()) // veja ajuste abaixo
+                .setSubject(usuario.getEmail())
                 .claim("role", usuario.getRole().getNome())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 86400000))
+                .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -48,17 +54,14 @@ public class JwtService {
     }
 
     private Claims extrairClaims(String token) {
-        System.out.println("JwtService: Tentando parsear token...");
         try {
-            Claims claims = Jwts.parserBuilder()
+            return Jwts.parserBuilder()
                     .setSigningKey(getSignKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            System.out.println("JwtService: Token parseado com sucesso. Subject: " + claims.getSubject());
-            return claims;
         } catch (Exception e) {
-            System.out.println("JwtService: Erro ao parsear token: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            log.debug("JWT validation failed: {}", e.getMessage());
             throw e;
         }
     }

@@ -2,7 +2,6 @@ package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.model.Manutencao;
 import br.com.cmms.cmms.service.ManutencaoService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,8 +11,11 @@ import java.util.List;
 @RequestMapping("/api/manutencoes")
 public class ManutencaoController {
 
-    @Autowired
-    private ManutencaoService manutencaoService;
+    private final ManutencaoService manutencaoService;
+
+    public ManutencaoController(ManutencaoService manutencaoService) {
+        this.manutencaoService = manutencaoService;
+    }
 
     @PostMapping("/{maquinaId}")
     public ResponseEntity<Manutencao> cadastrar(

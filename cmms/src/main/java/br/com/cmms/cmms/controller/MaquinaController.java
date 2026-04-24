@@ -2,7 +2,6 @@ package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.service.MaquinaService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,8 +11,11 @@ import java.util.List;
 @RequestMapping("/api/maquinas")
 public class MaquinaController {
 
-    @Autowired
-    private MaquinaService maquinaService;
+    private final MaquinaService maquinaService;
+
+    public MaquinaController(MaquinaService maquinaService) {
+        this.maquinaService = maquinaService;
+    }
 
     @PostMapping
     public ResponseEntity<Maquina> cadastrar(@RequestBody Maquina maquina) {
