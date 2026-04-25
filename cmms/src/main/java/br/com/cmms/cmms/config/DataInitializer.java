@@ -29,23 +29,27 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        Role role = roleRepository.findByNome("ROLE_ADMIN")
-                .orElseGet(() -> {
-                    Role r = new Role();
-                    r.setNome("ROLE_ADMIN");
-                    return roleRepository.save(r);
-                });
+        Role adminRole = roleRepository.findByNome("ROLE_ADMIN")
+            .orElseGet(() -> {
+                Role r = new Role();
+                r.setNome("ROLE_ADMIN");
+                return roleRepository.save(r);
+            });
 
-        boolean exists = usuarioRepository.findByEmail("admin@email.com").isPresent();
-        if (!exists) {
+        roleRepository.findByNome("ROLE_USER")
+            .orElseGet(() -> {
+                Role r = new Role();
+                r.setNome("ROLE_USER");
+                return roleRepository.save(r);
+            });
+
+        if (usuarioRepository.findByEmail("admin@email.com").isEmpty()) {
             Usuario admin = new Usuario();
             admin.setEmail("admin@email.com");
             admin.setSenha(passwordEncoder.encode("123456"));
-            admin.setRole(role);
+            admin.setRole(adminRole);
             usuarioRepository.save(admin);
             log.info("Admin user created: admin@email.com");
-        } else {
-            log.info("Admin user already exists, skipping seed.");
         }
     }
 }
