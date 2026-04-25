@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.PecaResponseDTO;
 import br.com.cmms.cmms.service.PecaService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class PecaController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<PecaResponseDTO> cadastrar(@RequestBody PecaRequestDTO dto) {
         return ResponseEntity.ok(pecaService.cadastrar(dto));
     }
@@ -35,6 +37,7 @@ public class PecaController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<PecaResponseDTO> atualizar(
             @PathVariable Long id,
             @RequestBody @Valid PecaRequestDTO dto
@@ -43,6 +46,7 @@ public class PecaController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         pecaService.deletar(id);
         return ResponseEntity.noContent().build();

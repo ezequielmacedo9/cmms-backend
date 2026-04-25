@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -52,8 +51,14 @@ public class AuthController {
         String accessToken = jwtService.gerarToken(usuario);
         String refreshToken = refreshTokenService.criarRefreshToken(usuario).getToken();
 
-        log.info("Login successful for email: {}", request.getEmail());
-        return ResponseEntity.ok(new TokenResponseDTO(accessToken, refreshToken));
+        log.info("Login successful for: {} role: {}", request.getEmail(), usuario.getRole().getNome());
+        return ResponseEntity.ok(new TokenResponseDTO(
+            accessToken,
+            refreshToken,
+            usuario.getRole().getNome(),
+            usuario.getNome() != null ? usuario.getNome() : usuario.getEmail(),
+            usuario.getId()
+        ));
     }
 
     @PostMapping("/refresh")

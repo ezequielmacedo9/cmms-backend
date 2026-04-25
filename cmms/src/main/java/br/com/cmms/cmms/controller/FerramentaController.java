@@ -4,6 +4,7 @@ import br.com.cmms.cmms.model.Ferramenta;
 import br.com.cmms.cmms.service.FerramentaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public class FerramentaController {
     private FerramentaService ferramentaService;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<Ferramenta> cadastrar(@RequestBody Ferramenta ferramenta) {
         return ResponseEntity.ok(ferramentaService.cadastrar(ferramenta));
     }
@@ -33,6 +35,7 @@ public class FerramentaController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<Ferramenta> atualizar(
             @PathVariable Long id,
             @RequestBody Ferramenta ferramenta
@@ -41,6 +44,7 @@ public class FerramentaController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         ferramentaService.deletar(id);
         return ResponseEntity.noContent().build();

@@ -5,6 +5,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -15,62 +16,52 @@ public class Usuario implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false)
     private String senha;
+
+    @Column
+    private String nome;
+
+    @Column(columnDefinition = "boolean default true")
+    private boolean ativo = true;
+
+    @Column(updatable = false)
+    private LocalDateTime dataCriacao;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;
 
-    // ===== GETTERS PADRÃO =====
-
-    public Role getRole() {
-        return role;
+    @PrePersist
+    protected void onCreate() {
+        if (dataCriacao == null) dataCriacao = LocalDateTime.now();
     }
 
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public void setSenha(String senha) {
-        this.senha = senha;
-    }
-
-    // ===== SPRING SECURITY =====
-
-    public String getSenha() {
-        return senha;
-    }
-
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getSenha() { return senha; }
+    public void setSenha(String senha) { this.senha = senha; }
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
+    public boolean isAtivo() { return ativo; }
+    public void setAtivo(boolean ativo) { this.ativo = ativo; }
+    public LocalDateTime getDataCriacao() { return dataCriacao; }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority(role.getNome()));
     }
 
-    @Override
-    public String getPassword() {
-        return senha;
-    }
-
-    @Override
-    public String getUsername() {
-        return email;
-    }
-
+    @Override public String getPassword() { return senha; }
+    @Override public String getUsername() { return email; }
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }
     @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return true; }
+    @Override public boolean isEnabled() { return ativo; }
 }

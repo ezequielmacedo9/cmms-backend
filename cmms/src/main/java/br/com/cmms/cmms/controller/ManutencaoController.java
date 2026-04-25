@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.service.ManutencaoService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class ManutencaoController {
     }
 
     @PostMapping("/{maquinaId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
     public ResponseEntity<ManutencaoResponseDTO> cadastrar(
             @PathVariable Long maquinaId,
             @RequestBody @Valid ManutencaoRequestDTO dto
@@ -38,6 +40,7 @@ public class ManutencaoController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         manutencaoService.deletar(id);
         return ResponseEntity.noContent().build();

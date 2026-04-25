@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.service.MaquinaService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class MaquinaController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<MaquinaResponseDTO> cadastrar(@RequestBody @Valid MaquinaRequestDTO dto) {
         return ResponseEntity.ok(maquinaService.cadastrar(dto));
     }
@@ -35,6 +37,7 @@ public class MaquinaController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     public ResponseEntity<MaquinaResponseDTO> atualizar(
             @PathVariable Long id,
             @RequestBody @Valid MaquinaRequestDTO dto
@@ -43,6 +46,7 @@ public class MaquinaController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         maquinaService.deletar(id);
         return ResponseEntity.noContent().build();

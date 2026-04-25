@@ -29,27 +29,35 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        Role adminRole = roleRepository.findByNome("ROLE_ADMIN")
-            .orElseGet(() -> {
-                Role r = new Role();
-                r.setNome("ROLE_ADMIN");
-                return roleRepository.save(r);
-            });
+        Role superAdminRole = ensureRole("ROLE_SUPER_ADMIN");
+        Role adminRole      = ensureRole("ROLE_ADMIN");
+        ensureRole("ROLE_GESTOR");
+        ensureRole("ROLE_TECNICO");
+        ensureRole("ROLE_VISUALIZADOR");
+        ensureRole("ROLE_USER"); // backward compat
 
-        roleRepository.findByNome("ROLE_USER")
-            .orElseGet(() -> {
-                Role r = new Role();
-                r.setNome("ROLE_USER");
-                return roleRepository.save(r);
-            });
+        ensureUsuario("superadmin@email.com", "Super Administrador", "123456", superAdminRole);
+        ensureUsuario("admin@email.com",      "Administrador",       "123456", adminRole);
+    }
 
-        if (usuarioRepository.findByEmail("admin@email.com").isEmpty()) {
-            Usuario admin = new Usuario();
-            admin.setEmail("admin@email.com");
-            admin.setSenha(passwordEncoder.encode("123456"));
-            admin.setRole(adminRole);
-            usuarioRepository.save(admin);
-            log.info("Admin user created: admin@email.com");
+    private Role ensureRole(String nome) {
+        return roleRepository.findByNome(nome).orElseGet(() -> {
+            Role r = new Role(nome);
+            return roleRepository.save(r);
+        });
+    }
+
+    private void ensureUsuario(String email, String nome, String senhaPlana, Role role) {
+        Usuario u = usuarioRepository.findByEmail(email).orElse(null);
+        if (u == null) {
+            u = new Usuario();
+            u.setEmail(email);
+            u.setSenha(passwordEncoder.encode(senhaPlana));
         }
+        if (u.getNome() == null) u.setNome(nome);
+        if (!u.isAtivo()) u.setAtivo(true);
+        u.setRole(role);
+        usuarioRepository.save(u);
+        log.info("Usuario garantido: {} [{}]", email, role.getNome());
     }
 }
