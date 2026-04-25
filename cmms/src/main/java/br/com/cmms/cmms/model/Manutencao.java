@@ -7,7 +7,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "manutencoes")
+@Table(name = "manutencoes", indexes = {
+    @Index(name = "idx_manutencao_tipo", columnList = "tipo"),
+    @Index(name = "idx_manutencao_data", columnList = "data_manutencao"),
+    @Index(name = "idx_manutencao_maquina", columnList = "maquina_id"),
+    @Index(name = "idx_manutencao_status", columnList = "status")
+})
 public class Manutencao {
 
     @ManyToMany
@@ -26,7 +31,14 @@ public class Manutencao {
     @Column(nullable = false)
     private String tipo;
 
+    @Column(name = "data_manutencao")
     private LocalDate dataManutencao;
+
+    @Column(length = 20)
+    private String prioridade = "MEDIA";
+
+    @Column(length = 20)
+    private String status = "ABERTA";
 
     @ManyToOne
     @JoinColumn(name = "maquina_id", nullable = false)
@@ -93,6 +105,22 @@ public class Manutencao {
 
     public void setDescricao(String descricao) {
         this.descricao = descricao;
+    }
+
+    public String getPrioridade() {
+        return prioridade;
+    }
+
+    public void setPrioridade(String prioridade) {
+        this.prioridade = prioridade;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public List<Peca> getPecasUtilizadas() {

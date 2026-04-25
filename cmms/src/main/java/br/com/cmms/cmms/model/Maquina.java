@@ -9,7 +9,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "maquinas")
+@Table(name = "maquinas", indexes = {
+    @Index(name = "idx_maquina_status", columnList = "status"),
+    @Index(name = "idx_maquina_prioridade", columnList = "prioridade")
+})
 public class Maquina {
 
     @Id
@@ -29,6 +32,9 @@ public class Maquina {
     private String status;
 
     private Integer intervaloPreventivaDias = 0;
+
+    @Column(length = 20)
+    private String prioridade = "MEDIA";
 
 
     @OneToMany(
@@ -93,6 +99,14 @@ public class Maquina {
 
     public void setIntervaloPreventivaDias(int intervaloPreventivaDias) {
         this.intervaloPreventivaDias = intervaloPreventivaDias;
+    }
+
+    public String getPrioridade() {
+        return prioridade;
+    }
+
+    public void setPrioridade(String prioridade) {
+        this.prioridade = prioridade;
     }
 
     public List<Manutencao> getListaDeManutencoes() {
