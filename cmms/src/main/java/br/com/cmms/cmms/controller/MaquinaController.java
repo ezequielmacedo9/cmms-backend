@@ -1,7 +1,9 @@
 package br.com.cmms.cmms.controller;
 
-import br.com.cmms.cmms.model.Maquina;
+import br.com.cmms.cmms.dto.MaquinaRequestDTO;
+import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.service.MaquinaService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,28 +20,26 @@ public class MaquinaController {
     }
 
     @PostMapping
-    public ResponseEntity<Maquina> cadastrar(@RequestBody Maquina maquina) {
-        return ResponseEntity.ok(maquinaService.cadastrar(maquina));
+    public ResponseEntity<MaquinaResponseDTO> cadastrar(@RequestBody @Valid MaquinaRequestDTO dto) {
+        return ResponseEntity.ok(maquinaService.cadastrar(dto));
     }
 
     @GetMapping
-    public ResponseEntity<List<Maquina>> listar() {
+    public ResponseEntity<List<MaquinaResponseDTO>> listar() {
         return ResponseEntity.ok(maquinaService.listar());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Maquina> buscarPorId(@PathVariable Long id) {
-        Maquina m = maquinaService.buscarPorId(id);
-        if (m == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(m);
+    public ResponseEntity<MaquinaResponseDTO> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(maquinaService.buscarPorId(id));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Maquina> atualizar(
+    public ResponseEntity<MaquinaResponseDTO> atualizar(
             @PathVariable Long id,
-            @RequestBody Maquina maquina
+            @RequestBody @Valid MaquinaRequestDTO dto
     ) {
-        return ResponseEntity.ok(maquinaService.atualizar(id, maquina));
+        return ResponseEntity.ok(maquinaService.atualizar(id, dto));
     }
 
     @DeleteMapping("/{id}")

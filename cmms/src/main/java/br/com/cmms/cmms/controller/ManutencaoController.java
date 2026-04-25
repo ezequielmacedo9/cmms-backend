@@ -1,7 +1,9 @@
 package br.com.cmms.cmms.controller;
 
-import br.com.cmms.cmms.model.Manutencao;
+import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
+import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.service.ManutencaoService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,20 +20,20 @@ public class ManutencaoController {
     }
 
     @PostMapping("/{maquinaId}")
-    public ResponseEntity<Manutencao> cadastrar(
+    public ResponseEntity<ManutencaoResponseDTO> cadastrar(
             @PathVariable Long maquinaId,
-            @RequestBody Manutencao manutencao
+            @RequestBody @Valid ManutencaoRequestDTO dto
     ) {
-        return ResponseEntity.ok(manutencaoService.cadastrar(manutencao, maquinaId));
+        return ResponseEntity.ok(manutencaoService.cadastrar(dto, maquinaId));
     }
 
     @GetMapping
-    public ResponseEntity<List<Manutencao>> listar() {
+    public ResponseEntity<List<ManutencaoResponseDTO>> listar() {
         return ResponseEntity.ok(manutencaoService.listar());
     }
 
     @GetMapping("/maquina/{maquinaId}")
-    public ResponseEntity<List<Manutencao>> listarPorMaquina(@PathVariable Long maquinaId) {
+    public ResponseEntity<List<ManutencaoResponseDTO>> listarPorMaquina(@PathVariable Long maquinaId) {
         return ResponseEntity.ok(manutencaoService.listarPorMaquina(maquinaId));
     }
 

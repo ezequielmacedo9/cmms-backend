@@ -1,12 +1,18 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.dto.MaquinaRequestDTO;
+import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -21,41 +27,75 @@ public class MaquinaService {
     }
 
     @Transactional
-    public Maquina cadastrar(Maquina maquina) {
-        log.info("Cadastrando máquina: {}", maquina.getNome());
-        return maquinaRepository.save(maquina);
+    @Caching(evict = {
+        @CacheEvict(value = "maquinas", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
+    public MaquinaResponseDTO cadastrar(MaquinaRequestDTO dto) {
+        Maquina m = new Maquina();
+        applyDto(dto, m);
+        log.info("Cadastrando máquina: {}", dto.nome());
+        return toDTO(maquinaRepository.save(m));
     }
 
-    public List<Maquina> listar() {
-        return maquinaRepository.findAll();
+    @Cacheable("maquinas")
+    public List<MaquinaResponseDTO> listar() {
+        return maquinaRepository.findAll().stream().map(this::toDTO).toList();
     }
 
-    public Maquina buscarPorId(Long id) {
-        return maquinaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
+    public MaquinaResponseDTO buscarPorId(Long id) {
+        return toDTO(maquinaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id)));
     }
 
     @Transactional
-    public Maquina atualizar(Long id, Maquina maquina) {
-        Maquina existente = maquinaRepository.findById(id)
+    @Caching(evict = {
+        @CacheEvict(value = "maquinas", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
+    public MaquinaResponseDTO atualizar(Long id, MaquinaRequestDTO dto) {
+        Maquina m = maquinaRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
-
-        existente.setNome(maquina.getNome());
-        existente.setSetor(maquina.getSetor());
-        existente.setStatus(maquina.getStatus());
-        existente.setIntervaloPreventivaDias(maquina.getIntervaloPreventivaDias());
-        existente.setDataUltimaManutencao(maquina.getDataUltimaManutencao());
-
+        applyDto(dto, m);
         log.info("Atualizando máquina id={}", id);
-        return maquinaRepository.save(existente);
+        return toDTO(maquinaRepository.save(m));
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "maquinas", allEntries = true),
+        @CacheEvict(value = "dashboard-stats", allEntries = true)
+    })
     public void deletar(Long id) {
         if (!maquinaRepository.existsById(id)) {
             throw new RuntimeException("Máquina não encontrada: " + id);
         }
         log.info("Deletando máquina id={}", id);
         maquinaRepository.deleteById(id);
+    }
+
+    private void applyDto(MaquinaRequestDTO dto, Maquina m) {
+        m.setNome(dto.nome());
+        m.setSetor(dto.setor());
+        m.setStatus(dto.status());
+        m.setPrioridade(dto.prioridade() != null ? dto.prioridade() : (m.getPrioridade() != null ? m.getPrioridade() : "MEDIA"));
+        m.setIntervaloPreventivaDias(dto.intervaloPreventivaDias() != null ? dto.intervaloPreventivaDias() : 0);
+        m.setDataUltimaManutencao(dto.dataUltimaManutencao());
+    }
+
+    public MaquinaResponseDTO toDTO(Maquina m) {
+        return new MaquinaResponseDTO(
+            m.getId(), m.getNome(), m.getSetor(), m.getStatus(),
+            m.getPrioridade() != null ? m.getPrioridade() : "MEDIA",
+            m.getIntervaloPreventivaDias(),
+            m.getDataUltimaManutencao(),
+            isVencida(m)
+        );
+    }
+
+    private boolean isVencida(Maquina m) {
+        if (m.getIntervaloPreventivaDias() == null || m.getIntervaloPreventivaDias() == 0) return false;
+        if (m.getDataUltimaManutencao() == null) return true;
+        return m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()).isBefore(LocalDate.now());
     }
 }
