@@ -27,8 +27,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final List<String> ALLOWED_ORIGIN_PATTERNS = List.of(
-        "https://*.vercel.app",   // covers all Vercel deployments (current and future)
-        "https://cmms-frontend-oagroceo8-ezequielmacedo9s-projects.vercel.app",
+        "https://*.vercel.app",   // covers all Vercel deployments regardless of hash
         "http://localhost:4200"
     );
 

@@ -51,7 +51,7 @@ Este backend serve como núcleo do CMMS Industrial Suite — responsável por:
 | 🔧 **API Base** | https://cmms-backend-8y7h.onrender.com |
 | 📖 **Swagger UI** | https://cmms-backend-8y7h.onrender.com/swagger-ui.html |
 | 🏓 **Health Check** | https://cmms-backend-8y7h.onrender.com/ping |
-| 🖥️ **Frontend** | https://cmms-frontend-oagroceo8-ezequielmacedo9s-projects.vercel.app |
+| 🖥️ **Frontend** | https://cmms-frontend-ezequielmacedo9s-projects.vercel.app |
 
 > ⚠️ **Render Free Tier:** o serviço hiberna após 15 min de inatividade. O frontend faz pings a cada 14 min para manter o servidor ativo.
 
@@ -417,7 +417,7 @@ git push
 ```java
 List.of(
     "https://*.vercel.app",                                                    // todos os deploys Vercel
-    "https://cmms-frontend-oagroceo8-ezequielmacedo9s-projects.vercel.app",    // URL atual de produção
+    "https://cmms-frontend-ezequielmacedo9s-projects.vercel.app",    // URL atual de produção
     "http://localhost:4200"                                                     // desenvolvimento local
 )
 ```
