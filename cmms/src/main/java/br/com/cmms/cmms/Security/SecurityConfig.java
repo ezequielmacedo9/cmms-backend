@@ -28,6 +28,7 @@ public class SecurityConfig {
 
     private static final List<String> ALLOWED_ORIGIN_PATTERNS = List.of(
         "https://*.vercel.app",   // covers all Vercel deployments (current and future)
+        "https://cmms-frontend-oagroceo8-ezequielmacedo9s-projects.vercel.app",
         "http://localhost:4200"
     );
 
