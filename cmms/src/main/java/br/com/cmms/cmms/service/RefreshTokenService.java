@@ -36,6 +36,9 @@ public class RefreshTokenService {
     }
 
     public RefreshToken validar(String token) {
+        if (token == null || token.isBlank()) {
+            throw new RuntimeException("Refresh token inválido");
+        }
         RefreshToken refreshToken = repository.findByToken(token)
                 .orElseThrow(() -> new RuntimeException("Refresh token inválido"));
 

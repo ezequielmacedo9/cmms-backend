@@ -6,7 +6,6 @@ import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,11 +16,14 @@ public class ManutencaoService {
 
     private static final Logger log = LoggerFactory.getLogger(ManutencaoService.class);
 
-    @Autowired
-    private ManutencaoRepository manutencaoRepository;
+    private final ManutencaoRepository manutencaoRepository;
+    private final MaquinaRepository maquinaRepository;
 
-    @Autowired
-    private MaquinaRepository maquinaRepository;
+    public ManutencaoService(ManutencaoRepository manutencaoRepository,
+                             MaquinaRepository maquinaRepository) {
+        this.manutencaoRepository = manutencaoRepository;
+        this.maquinaRepository = maquinaRepository;
+    }
 
     @Transactional
     public Manutencao cadastrar(Manutencao manutencao, Long maquinaId) {
@@ -46,12 +48,10 @@ public class ManutencaoService {
     }
 
     @Transactional
-    public Manutencao atualizar(Manutencao manutencao) {
-        return manutencaoRepository.save(manutencao);
-    }
-
-    @Transactional
     public void deletar(Long id) {
+        if (!manutencaoRepository.existsById(id)) {
+            throw new RuntimeException("Manutenção não encontrada: " + id);
+        }
         log.info("Deletando manutenção id={}", id);
         manutencaoRepository.deleteById(id);
     }

@@ -4,7 +4,6 @@ import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +14,11 @@ public class MaquinaService {
 
     private static final Logger log = LoggerFactory.getLogger(MaquinaService.class);
 
-    @Autowired
-    private MaquinaRepository maquinaRepository;
+    private final MaquinaRepository maquinaRepository;
+
+    public MaquinaService(MaquinaRepository maquinaRepository) {
+        this.maquinaRepository = maquinaRepository;
+    }
 
     @Transactional
     public Maquina cadastrar(Maquina maquina) {
@@ -50,6 +52,9 @@ public class MaquinaService {
 
     @Transactional
     public void deletar(Long id) {
+        if (!maquinaRepository.existsById(id)) {
+            throw new RuntimeException("Máquina não encontrada: " + id);
+        }
         log.info("Deletando máquina id={}", id);
         maquinaRepository.deleteById(id);
     }

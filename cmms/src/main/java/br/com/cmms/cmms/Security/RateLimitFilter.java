@@ -23,11 +23,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Order(1)
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private static final int CAPACITY = 10;
+    private static final Duration REFILL_PERIOD = Duration.ofMinutes(1);
+
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private Bucket createBucket() {
-        Bandwidth limit = Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1)));
+        Bandwidth limit = Bandwidth.classic(CAPACITY, Refill.intervally(CAPACITY, REFILL_PERIOD));
         return Bucket.builder().addLimit(limit).build();
     }
 
@@ -38,7 +41,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        if ("/api/auth/login".equals(request.getRequestURI())) {
+        // Skip OPTIONS preflights — they must not consume rate-limit tokens
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if ("/api/auth/login".equals(request.getServletPath())) {
             String ip = getClientIp(request);
             Bucket bucket = buckets.computeIfAbsent(ip, k -> createBucket());
 

@@ -23,12 +23,12 @@ public class Maquina {
     private String setor;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate dataUltimaManutencao = LocalDate.now();
+    private LocalDate dataUltimaManutencao;
 
     @Column(nullable = false)
     private String status;
 
-    private Integer intervaloPreventivaDias = (Integer) 0;
+    private Integer intervaloPreventivaDias = 0;
 
 
     @OneToMany(
@@ -92,7 +92,7 @@ public class Maquina {
     }
 
     public void setIntervaloPreventivaDias(int intervaloPreventivaDias) {
-        this.intervaloPreventivaDias = (Integer) intervaloPreventivaDias;
+        this.intervaloPreventivaDias = intervaloPreventivaDias;
     }
 
     public List<Manutencao> getListaDeManutencoes() {

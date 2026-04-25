@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -44,14 +45,31 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(NoSuchElementException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(
+            NoSuchElementException ex,
+            HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(
+            HttpStatus.NOT_FOUND.value(), ex.getMessage(), request.getRequestURI()
+        ));
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(
             RuntimeException ex,
             HttpServletRequest request
     ) {
-        log.error("RuntimeException at {}: {}", request.getRequestURI(), ex.getMessage());
+        String msg = ex.getMessage() != null ? ex.getMessage() : "";
+        // "não encontrada/encontrado" messages are 404, not 400
+        if (msg.contains("não encontrada") || msg.contains("não encontrado")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorBody(
+                HttpStatus.NOT_FOUND.value(), msg, request.getRequestURI()
+            ));
+        }
+        log.error("RuntimeException at {}: {}", request.getRequestURI(), msg);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorBody(
-            HttpStatus.BAD_REQUEST.value(), ex.getMessage(), request.getRequestURI()
+            HttpStatus.BAD_REQUEST.value(), msg, request.getRequestURI()
         ));
     }
 

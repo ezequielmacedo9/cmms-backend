@@ -57,9 +57,11 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@RequestBody Map<String, String> body) {
-        String refreshToken = body.get("refreshToken");
-        RefreshToken token = refreshTokenService.validar(refreshToken);
+    public ResponseEntity<?> refresh(@RequestBody(required = false) Map<String, String> body) {
+        if (body == null || !body.containsKey("refreshToken")) {
+            return ResponseEntity.badRequest().body(Map.of("error", "refreshToken é obrigatório"));
+        }
+        RefreshToken token = refreshTokenService.validar(body.get("refreshToken"));
         String novoAccessToken = jwtService.gerarToken(token.getUsuario());
         return ResponseEntity.ok(Map.of("accessToken", novoAccessToken));
     }

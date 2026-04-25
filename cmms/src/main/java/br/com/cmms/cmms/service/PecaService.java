@@ -6,7 +6,6 @@ import br.com.cmms.cmms.model.Peca;
 import br.com.cmms.cmms.repository.PecaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,8 +16,11 @@ public class PecaService {
 
     private static final Logger log = LoggerFactory.getLogger(PecaService.class);
 
-    @Autowired
-    private PecaRepository pecaRepository;
+    private final PecaRepository pecaRepository;
+
+    public PecaService(PecaRepository pecaRepository) {
+        this.pecaRepository = pecaRepository;
+    }
 
     @Transactional
     public PecaResponseDTO cadastrar(PecaRequestDTO dto) {
@@ -68,9 +70,9 @@ public class PecaService {
         dto.setId(peca.getId());
         dto.setNome(peca.getNome());
         dto.setCodigo(peca.getCodigo());
-        dto.setQuantidadeEmEstoque(Integer.valueOf(peca.getQuantidadeEmEstoque()));
-        dto.setCustoUnitario(Double.valueOf(peca.getCustoUnitario()));
-        dto.setVidaUtilHoras(Integer.valueOf(peca.getVidaUtilHoras()));
+        dto.setQuantidadeEmEstoque(peca.getQuantidadeEmEstoque());
+        dto.setCustoUnitario(peca.getCustoUnitario());
+        dto.setVidaUtilHoras(peca.getVidaUtilHoras());
         return dto;
     }
 }

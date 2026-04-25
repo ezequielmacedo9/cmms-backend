@@ -2,6 +2,7 @@ package br.com.cmms.cmms.Security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -25,6 +26,12 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
+    private static final List<String> ALLOWED_ORIGINS = List.of(
+        "https://cmms-frontend.vercel.app",
+        "https://cmms-frontend-git-main-ezequielmacedo9.vercel.app",
+        "http://localhost:4200"
+    );
+
     private final JwtAuthFilter jwtAuthFilter;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
@@ -39,7 +46,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(ALLOWED_ORIGINS);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
@@ -63,6 +70,8 @@ public class SecurityConfig {
                         .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", "camera=(), microphone=(), geolocation=()"))
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Preflight CORS — must be first and unconditional
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/refresh",

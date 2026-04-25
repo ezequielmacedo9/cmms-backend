@@ -1,7 +1,6 @@
 package br.com.cmms.cmms.model;
 
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -22,12 +21,11 @@ public class Manutencao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @Column(nullable = false)
     private String tipo;
 
-    @JsonProperty("data")
     private LocalDate dataManutencao;
 
     @ManyToOne
@@ -54,7 +52,7 @@ public class Manutencao {
 
     // 🔹 GETTERS / SETTERS
     public Long getId() {
-        return (Long) id;
+        return id;
     }
 
     public String getTipo() {
