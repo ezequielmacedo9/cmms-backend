@@ -26,9 +26,8 @@ import java.util.List;
 @Configuration
 public class SecurityConfig {
 
-    private static final List<String> ALLOWED_ORIGINS = List.of(
-        "https://cmms-frontend.vercel.app",
-        "https://cmms-frontend-git-main-ezequielmacedo9.vercel.app",
+    private static final List<String> ALLOWED_ORIGIN_PATTERNS = List.of(
+        "https://*.vercel.app",   // covers all Vercel deployments (current and future)
         "http://localhost:4200"
     );
 
@@ -46,7 +45,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(ALLOWED_ORIGINS);
+        config.setAllowedOriginPatterns(ALLOWED_ORIGIN_PATTERNS);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
