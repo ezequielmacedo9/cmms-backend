@@ -77,6 +77,10 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/login",
                     "/api/auth/refresh",
+                    "/api/auth/google",
+                    "/api/auth/forgot-password",
+                    "/api/auth/reset-password",
+                    "/api/auth/validate-reset-token",
                     "/error",
                     "/ping",
                     "/h2-console/**",
