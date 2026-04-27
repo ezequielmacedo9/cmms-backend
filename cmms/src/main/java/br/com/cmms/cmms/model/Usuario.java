@@ -25,8 +25,12 @@ public class Usuario implements UserDetails {
     @Column
     private String nome;
 
-    @Column(columnDefinition = "boolean default true")
-    private boolean ativo = true;
+    /**
+     * Boolean wrapper — null treated as active for backward compat with existing DB rows.
+     * NULL→true, TRUE→true, FALSE→false
+     */
+    @Column
+    private Boolean ativo;
 
     @Column(updatable = false)
     private LocalDateTime dataCriacao;
@@ -38,6 +42,7 @@ public class Usuario implements UserDetails {
     @PrePersist
     protected void onCreate() {
         if (dataCriacao == null) dataCriacao = LocalDateTime.now();
+        if (ativo == null)       ativo = Boolean.TRUE;
     }
 
     public Long getId() { return id; }
@@ -47,7 +52,7 @@ public class Usuario implements UserDetails {
     public void setSenha(String senha) { this.senha = senha; }
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
-    public boolean isAtivo() { return ativo; }
+    public boolean isAtivo()            { return !Boolean.FALSE.equals(ativo); }
     public void setAtivo(boolean ativo) { this.ativo = ativo; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }
     public Role getRole() { return role; }
@@ -63,5 +68,5 @@ public class Usuario implements UserDetails {
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }
     @Override public boolean isCredentialsNonExpired() { return true; }
-    @Override public boolean isEnabled() { return ativo; }
+    @Override public boolean isEnabled() { return isAtivo(); }
 }
