@@ -14,6 +14,10 @@ public record DashboardStatsDTO(
     long manutencoesVencidas,
     double disponibilidade,
     double mtbfDias,
+    double mttrHoras,
+    double custoTotalMes,
+    long totalEstoqueBaixo,
+    long manutencoesSlaVencido,
     List<MonthlyCount> ultimosSeisMeses,
     List<OverdueAlert> alertasVencidos
 ) {

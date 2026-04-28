@@ -28,6 +28,9 @@ public class Peca {
     @Column(nullable = false)
     private double custoUnitario;
 
+    @Column(name = "quantidade_minima")
+    private int quantidadeMinima = 0;
+
     @ManyToMany(mappedBy = "pecasUtilizadas")
     private List<Manutencao> manutencoes = new ArrayList<>();
 
@@ -84,6 +87,11 @@ public class Peca {
     public void setCustoUnitario(double custoUnitario) {
         this.custoUnitario = custoUnitario;
     }
+
+    public int getQuantidadeMinima() { return quantidadeMinima; }
+    public void setQuantidadeMinima(int quantidadeMinima) { this.quantidadeMinima = quantidadeMinima; }
+
+    public boolean isAbaixoDoMinimo() { return quantidadeEmEstoque <= quantidadeMinima; }
 
     // 🔹 REGRA DE NEGÓCIO (MANTIDA)
     public void baixarEstoque(int quantidade) {

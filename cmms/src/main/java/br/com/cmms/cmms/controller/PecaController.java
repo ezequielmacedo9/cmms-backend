@@ -31,6 +31,11 @@ public class PecaController {
         return ResponseEntity.ok(pecaService.listar());
     }
 
+    @GetMapping("/baixo-estoque")
+    public ResponseEntity<List<PecaResponseDTO>> baixoEstoque() {
+        return ResponseEntity.ok(pecaService.listarBaixoEstoque());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<PecaResponseDTO> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(pecaService.buscarPorId(id));

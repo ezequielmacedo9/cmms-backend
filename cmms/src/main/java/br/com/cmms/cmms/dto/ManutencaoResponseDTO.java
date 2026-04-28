@@ -10,6 +10,13 @@ public record ManutencaoResponseDTO(
     String prioridade,
     String status,
     LocalDate dataManutencao,
+    LocalDate prazoSla,
+    LocalDate dataConclusao,
+    Double horasParada,
+    Double custoMaoDeObra,
+    Double custoTotal,
+    String observacoesTecnico,
+    boolean slaVencido,
     MaquinaInfo maquina
 ) {
     public record MaquinaInfo(Long id, String nome, String setor) {}

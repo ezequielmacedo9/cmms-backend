@@ -24,6 +24,8 @@ public class PecaRequestDTO {
     @Positive
     private Integer vidaUtilHoras;
 
+    private Integer quantidadeMinima = 0;
+
     // getters e setters
 
 
@@ -66,4 +68,7 @@ public class PecaRequestDTO {
     public void setVidaUtilHoras(Integer vidaUtilHoras) {
         this.vidaUtilHoras = vidaUtilHoras;
     }
+
+    public Integer getQuantidadeMinima() { return quantidadeMinima != null ? quantidadeMinima : 0; }
+    public void setQuantidadeMinima(Integer quantidadeMinima) { this.quantidadeMinima = quantidadeMinima; }
 }

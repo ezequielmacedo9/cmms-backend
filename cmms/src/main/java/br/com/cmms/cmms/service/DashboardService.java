@@ -40,7 +40,7 @@ public class DashboardService {
 
         List<Maquina> maquinas = maquinaRepository.findAll();
         List<Manutencao> manutencoes = manutencaoRepository.findAll();
-        long totalPecas = pecaRepository.count();
+        List<br.com.cmms.cmms.model.Peca> pecas = pecaRepository.findAll();
 
         long totalMaquinas = maquinas.size();
         long maquinasAtivas = maquinas.stream().filter(m -> "ATIVO".equals(m.getStatus())).count();
@@ -61,15 +61,40 @@ public class DashboardService {
 
         double disponibilidade = totalMaquinas > 0 ? Math.round(maquinasAtivas * 1000.0 / totalMaquinas) / 10.0 : 0;
         double mtbfDias = Math.round(computeMtbf(manutencoes) * 10) / 10.0;
+        double mttrHoras = Math.round(computeMttr(manutencoes) * 10) / 10.0;
+
+        LocalDate inicioMes = hoje.withDayOfMonth(1);
+        double custoTotalMes = manutencoes.stream()
+            .filter(m -> m.getDataManutencao() != null && !m.getDataManutencao().isBefore(inicioMes))
+            .mapToDouble(Manutencao::calcularCustoTotal)
+            .sum();
+
+        long totalEstoqueBaixo = pecas.stream().filter(p -> p.isAbaixoDoMinimo()).count();
+
+        long manutencoesSlaVencido = manutencoes.stream()
+            .filter(Manutencao::isSlaVencido)
+            .count();
 
         return new DashboardStatsDTO(
-            totalMaquinas, manutencoes.size(), totalPecas,
+            totalMaquinas, manutencoes.size(), pecas.size(),
             maquinasAtivas, maquinasInativas, maquinasEmManutencao,
             manutencoesPreventivas, manutencoesCorretivas, manutencoesVencidas,
-            disponibilidade, mtbfDias,
+            disponibilidade, mtbfDias, mttrHoras,
+            Math.round(custoTotalMes * 100) / 100.0,
+            totalEstoqueBaixo, manutencoesSlaVencido,
             computeMonthlyCounts(manutencoes, hoje),
             computeAlerts(maquinas, hoje)
         );
+    }
+
+    private double computeMttr(List<Manutencao> manutencoes) {
+        List<Double> tempos = manutencoes.stream()
+            .filter(m -> "CORRETIVA".equals(m.getTipo())
+                && m.getHorasParada() != null
+                && m.getHorasParada() > 0)
+            .map(Manutencao::getHorasParada)
+            .toList();
+        return tempos.isEmpty() ? 0.0 : tempos.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
 
     private double computeMtbf(List<Manutencao> manutencoes) {

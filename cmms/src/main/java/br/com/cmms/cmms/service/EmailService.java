@@ -37,6 +37,94 @@ public class EmailService {
         sendHtml(toEmail, "🎉 Bem-vindo ao CMMS Industrial Suite", html);
     }
 
+    public void sendManutencaoVencida(String toEmail, String maquinaNome, String setor, long diasVencido) {
+        String html = """
+            <!DOCTYPE html><html><head><meta charset="UTF-8">
+            <style>
+              body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#0d0d1a;}
+              .c{max-width:540px;margin:40px auto;background:#12122a;border-radius:16px;border:1px solid rgba(239,68,68,.3);}
+              .h{background:linear-gradient(135deg,#7f1d1d,#991b1b);padding:28px;text-align:center;}
+              .logo{font-size:22px;font-weight:700;color:#fff;}
+              .b{padding:28px;}
+              h2{color:#fca5a5;font-size:18px;margin:0 0 12px;}
+              p{color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;margin:0 0 12px;}
+              .badge{display:inline-block;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);
+                     color:#fca5a5;padding:6px 14px;border-radius:20px;font-weight:600;font-size:13px;}
+              .f{border-top:1px solid rgba(255,255,255,.06);padding:16px 28px;font-size:11px;color:rgba(255,255,255,.2);text-align:center;}
+            </style></head><body>
+            <div class="c">
+              <div class="h"><div class="logo">⚠ CMMS — Alerta de Manutenção</div></div>
+              <div class="b">
+                <h2>Manutenção Preventiva Vencida</h2>
+                <p>A máquina <strong style="color:#fca5a5">%s</strong> (Setor: %s) está com a manutenção preventiva vencida há <span class="badge">%d dia(s)</span>.</p>
+                <p>Uma ordem de serviço foi gerada automaticamente. Verifique o sistema para atribuir um técnico.</p>
+              </div>
+              <div class="f">CMMS Industrial Suite · Alerta automático</div>
+            </div></body></html>
+            """.formatted(maquinaNome, setor, diasVencido);
+        sendHtml(toEmail, "⚠ Manutenção Preventiva Vencida — " + maquinaNome, html);
+    }
+
+    public void sendSlaVencendo(String toEmail, String maquinaNome, String tipo, long diasRestantes) {
+        String html = """
+            <!DOCTYPE html><html><head><meta charset="UTF-8">
+            <style>
+              body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#0d0d1a;}
+              .c{max-width:540px;margin:40px auto;background:#12122a;border-radius:16px;border:1px solid rgba(234,179,8,.3);}
+              .h{background:linear-gradient(135deg,#713f12,#92400e);padding:28px;text-align:center;}
+              .logo{font-size:22px;font-weight:700;color:#fff;}
+              .b{padding:28px;}
+              h2{color:#fde68a;font-size:18px;margin:0 0 12px;}
+              p{color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;margin:0 0 12px;}
+              .badge{display:inline-block;background:rgba(234,179,8,.15);border:1px solid rgba(234,179,8,.4);
+                     color:#fde68a;padding:6px 14px;border-radius:20px;font-weight:600;font-size:13px;}
+              .f{border-top:1px solid rgba(255,255,255,.06);padding:16px 28px;font-size:11px;color:rgba(255,255,255,.2);text-align:center;}
+            </style></head><body>
+            <div class="c">
+              <div class="h"><div class="logo">🕐 CMMS — SLA Vencendo</div></div>
+              <div class="b">
+                <h2>Prazo de SLA Próximo do Vencimento</h2>
+                <p>A ordem de serviço <strong style="color:#fde68a">%s</strong> na máquina <strong>%s</strong> vence em <span class="badge">%d dia(s)</span>.</p>
+                <p>Acesse o sistema para tomar as ações necessárias antes do prazo.</p>
+              </div>
+              <div class="f">CMMS Industrial Suite · Alerta automático</div>
+            </div></body></html>
+            """.formatted(tipo, maquinaNome, diasRestantes);
+        sendHtml(toEmail, "🕐 SLA Vencendo — " + maquinaNome, html);
+    }
+
+    public void sendEstoqueBaixo(String toEmail, String pecaNome, String codigo, int qtdAtual, int qtdMinima) {
+        String html = """
+            <!DOCTYPE html><html><head><meta charset="UTF-8">
+            <style>
+              body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#0d0d1a;}
+              .c{max-width:540px;margin:40px auto;background:#12122a;border-radius:16px;border:1px solid rgba(249,115,22,.3);}
+              .h{background:linear-gradient(135deg,#431407,#7c2d12);padding:28px;text-align:center;}
+              .logo{font-size:22px;font-weight:700;color:#fff;}
+              .b{padding:28px;}
+              h2{color:#fdba74;font-size:18px;margin:0 0 12px;}
+              p{color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;margin:0 0 12px;}
+              .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06);}
+              .label{color:rgba(255,255,255,.4);font-size:12px;}
+              .val{color:#fdba74;font-weight:600;}
+              .f{border-top:1px solid rgba(255,255,255,.06);padding:16px 28px;font-size:11px;color:rgba(255,255,255,.2);text-align:center;}
+            </style></head><body>
+            <div class="c">
+              <div class="h"><div class="logo">📦 CMMS — Estoque Baixo</div></div>
+              <div class="b">
+                <h2>Alerta de Reposição de Estoque</h2>
+                <p>A peça abaixo está abaixo do nível mínimo configurado:</p>
+                <div class="row"><span class="label">Peça</span><span class="val">%s</span></div>
+                <div class="row"><span class="label">Código</span><span class="val">%s</span></div>
+                <div class="row"><span class="label">Em estoque</span><span class="val">%d unid.</span></div>
+                <div class="row"><span class="label">Mínimo</span><span class="val">%d unid.</span></div>
+              </div>
+              <div class="f">CMMS Industrial Suite · Alerta automático</div>
+            </div></body></html>
+            """.formatted(pecaNome, codigo, qtdAtual, qtdMinima);
+        sendHtml(toEmail, "📦 Estoque Baixo — " + pecaNome, html);
+    }
+
     private void sendHtml(String to, String subject, String html) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

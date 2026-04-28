@@ -9,5 +9,10 @@ public record ManutencaoRequestDTO(
     String descricao,
     String prioridade,
     String status,
-    LocalDate dataManutencao
+    LocalDate dataManutencao,
+    LocalDate prazoSla,
+    LocalDate dataConclusao,
+    Double horasParada,
+    Double custoMaoDeObra,
+    String observacoesTecnico
 ) {}

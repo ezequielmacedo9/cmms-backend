@@ -57,22 +57,23 @@ public class PecaService {
         pecaRepository.deleteById(id);
     }
 
+    public List<PecaResponseDTO> listarBaixoEstoque() {
+        return pecaRepository.findAll().stream()
+            .filter(p -> p.isAbaixoDoMinimo())
+            .map(PecaResponseDTO::new)
+            .toList();
+    }
+
     private void copiarDtoParaEntity(PecaRequestDTO dto, Peca peca) {
         peca.setNome(dto.getNome());
         peca.setCodigo(dto.getCodigo());
         peca.setQuantidadeEmEstoque(dto.getQuantidadeEmEstoque());
         peca.setCustoUnitario(dto.getCustoUnitario());
         peca.setVidaUtilHoras(dto.getVidaUtilHoras());
+        peca.setQuantidadeMinima(dto.getQuantidadeMinima());
     }
 
     private PecaResponseDTO toResponseDTO(Peca peca) {
-        PecaResponseDTO dto = new PecaResponseDTO();
-        dto.setId(peca.getId());
-        dto.setNome(peca.getNome());
-        dto.setCodigo(peca.getCodigo());
-        dto.setQuantidadeEmEstoque(peca.getQuantidadeEmEstoque());
-        dto.setCustoUnitario(peca.getCustoUnitario());
-        dto.setVidaUtilHoras(peca.getVidaUtilHoras());
-        return dto;
+        return new PecaResponseDTO(peca);
     }
 }

@@ -40,6 +40,21 @@ public class Manutencao {
     @Column(length = 20)
     private String status = "ABERTA";
 
+    @Column(name = "prazo_sla")
+    private LocalDate prazoSla;
+
+    @Column(name = "data_conclusao")
+    private LocalDate dataConclusao;
+
+    @Column(name = "horas_parada")
+    private Double horasParada;
+
+    @Column(name = "custo_mao_de_obra")
+    private Double custoMaoDeObra = 0.0;
+
+    @Column(name = "observacoes_tecnico", length = 1000)
+    private String observacoesTecnico;
+
     @ManyToOne
     @JoinColumn(name = "maquina_id", nullable = false)
     private Maquina maquina;
@@ -134,11 +149,31 @@ public class Manutencao {
         }
     }
 
+    public LocalDate getPrazoSla() { return prazoSla; }
+    public void setPrazoSla(LocalDate prazoSla) { this.prazoSla = prazoSla; }
+
+    public LocalDate getDataConclusao() { return dataConclusao; }
+    public void setDataConclusao(LocalDate dataConclusao) { this.dataConclusao = dataConclusao; }
+
+    public Double getHorasParada() { return horasParada; }
+    public void setHorasParada(Double horasParada) { this.horasParada = horasParada; }
+
+    public Double getCustoMaoDeObra() { return custoMaoDeObra != null ? custoMaoDeObra : 0.0; }
+    public void setCustoMaoDeObra(Double custoMaoDeObra) { this.custoMaoDeObra = custoMaoDeObra; }
+
+    public String getObservacoesTecnico() { return observacoesTecnico; }
+    public void setObservacoesTecnico(String observacoesTecnico) { this.observacoesTecnico = observacoesTecnico; }
+
+    public boolean isSlaVencido() {
+        return prazoSla != null && !"CONCLUIDA".equals(status) && LocalDate.now().isAfter(prazoSla);
+    }
+
     public double calcularCustoTotal() {
-        return pecasUtilizadas
+        double custosPecas = pecasUtilizadas
                 .stream()
                 .mapToDouble(Peca::getCustoUnitario)
                 .sum();
+        return custosPecas + getCustoMaoDeObra();
     }
 
     @Override

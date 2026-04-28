@@ -10,6 +10,8 @@ public class PecaResponseDTO {
     private Integer quantidadeEmEstoque;
     private Double custoUnitario;
     private Integer vidaUtilHoras;
+    private Integer quantidadeMinima;
+    private Boolean abaixoDoMinimo;
 
     public PecaResponseDTO() {
     }
@@ -18,9 +20,11 @@ public class PecaResponseDTO {
         this.id = peca.getId();
         this.nome = peca.getNome();
         this.codigo = peca.getCodigo();
-        this.quantidadeEmEstoque = (Integer) peca.getQuantidadeEmEstoque();
-        this.custoUnitario = (Double) peca.getCustoUnitario();
-        this.vidaUtilHoras = (Integer) peca.getVidaUtilHoras();
+        this.quantidadeEmEstoque = peca.getQuantidadeEmEstoque();
+        this.custoUnitario = peca.getCustoUnitario();
+        this.vidaUtilHoras = peca.getVidaUtilHoras();
+        this.quantidadeMinima = peca.getQuantidadeMinima();
+        this.abaixoDoMinimo = peca.isAbaixoDoMinimo();
     }
 
 
@@ -73,4 +77,10 @@ public class PecaResponseDTO {
     public void setVidaUtilHoras(Integer vidaUtilHoras) {
         this.vidaUtilHoras = vidaUtilHoras;
     }
+
+    public Integer getQuantidadeMinima() { return quantidadeMinima; }
+    public void setQuantidadeMinima(Integer quantidadeMinima) { this.quantidadeMinima = quantidadeMinima; }
+
+    public Boolean getAbaixoDoMinimo() { return abaixoDoMinimo; }
+    public void setAbaixoDoMinimo(Boolean abaixoDoMinimo) { this.abaixoDoMinimo = abaixoDoMinimo; }
 }
