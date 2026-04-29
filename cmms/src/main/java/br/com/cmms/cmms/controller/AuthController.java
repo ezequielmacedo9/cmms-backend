@@ -3,7 +3,9 @@ package br.com.cmms.cmms.controller;
 import br.com.cmms.cmms.Security.JwtService;
 import br.com.cmms.cmms.Security.UserDetailsImpl;
 import br.com.cmms.cmms.dto.LoginRequestDTO;
+import br.com.cmms.cmms.dto.RegisterRequestDTO;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
+import br.com.cmms.cmms.service.EmpresaService;
 import br.com.cmms.cmms.model.RefreshToken;
 import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
@@ -48,6 +50,7 @@ public class AuthController {
     private final ConfiguracaoService config;
     private final AuditService audit;
     private final ObjectMapper objectMapper;
+    private final EmpresaService empresaService;
 
     public AuthController(AuthenticationManager authenticationManager,
                           JwtService jwtService,
@@ -57,7 +60,8 @@ public class AuthController {
                           PasswordEncoder passwordEncoder,
                           ConfiguracaoService config,
                           AuditService audit,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          EmpresaService empresaService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
@@ -67,6 +71,15 @@ public class AuthController {
         this.config = config;
         this.audit = audit;
         this.objectMapper = objectMapper;
+        this.empresaService = empresaService;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDTO dto,
+                                      HttpServletRequest httpRequest) {
+        java.util.Map<String, Object> result = empresaService.register(dto);
+        audit.log(dto.getEmail(), null, "REGISTER", "AUTH", null, "Self-service register: " + dto.getNomeEmpresa(), AuditService.getClientIp(httpRequest));
+        return ResponseEntity.status(201).body(result);
     }
 
     @PostMapping("/login")

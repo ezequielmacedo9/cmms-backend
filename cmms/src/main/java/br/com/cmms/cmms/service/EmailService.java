@@ -125,6 +125,35 @@ public class EmailService {
         sendHtml(toEmail, "📦 Estoque Baixo — " + pecaNome, html);
     }
 
+    public void sendBoasVindas(String toEmail, String nome, String nomeEmpresa) {
+        String html = """
+            <!DOCTYPE html><html><head><meta charset="UTF-8">
+            <style>
+              body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#0d0d1a;}
+              .c{max-width:540px;margin:40px auto;background:#12122a;border-radius:16px;border:1px solid rgba(139,92,246,.3);}
+              .h{background:linear-gradient(135deg,#1e1b4b,#4c1d95);padding:28px;text-align:center;}
+              .logo{font-size:22px;font-weight:700;color:#fff;}
+              .b{padding:28px;}
+              h2{color:#c4b5fd;font-size:18px;margin:0 0 12px;}
+              p{color:rgba(255,255,255,.65);font-size:14px;line-height:1.6;margin:0 0 12px;}
+              .btn{display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:11px 24px;border-radius:8px;font-weight:600;font-size:14px;margin-top:8px;}
+              .f{border-top:1px solid rgba(255,255,255,.06);padding:16px 28px;font-size:11px;color:rgba(255,255,255,.2);text-align:center;}
+            </style></head><body>
+            <div class="c">
+              <div class="h"><div class="logo">🎉 CMMS Industrial Suite</div></div>
+              <div class="b">
+                <h2>Bem-vindo(a), %s!</h2>
+                <p>Sua empresa <strong style="color:#c4b5fd">%s</strong> foi criada com sucesso no CMMS Industrial Suite.</p>
+                <p>Você está no plano <strong>Starter</strong> — pode cadastrar até 20 ativos e 3 usuários.</p>
+                <p>Acesse o sistema e comece a gerenciar suas manutenções agora:</p>
+                <a class="btn" href="%s">Acessar o Sistema</a>
+              </div>
+              <div class="f">CMMS Industrial Suite · Sistema de Manutenção Industrial</div>
+            </div></body></html>
+            """.formatted(nome != null ? nome : toEmail, nomeEmpresa, frontendUrl);
+        sendHtml(toEmail, "🎉 Bem-vindo ao CMMS — " + nomeEmpresa, html);
+    }
+
     private void sendHtml(String to, String subject, String html) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
