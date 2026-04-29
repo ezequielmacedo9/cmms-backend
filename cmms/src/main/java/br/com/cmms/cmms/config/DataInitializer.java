@@ -1,7 +1,10 @@
 package br.com.cmms.cmms.config;
 
+import br.com.cmms.cmms.model.Empresa;
+import br.com.cmms.cmms.model.PlanoAssinatura;
 import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
+import br.com.cmms.cmms.repository.EmpresaRepository;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import org.slf4j.Logger;
@@ -17,13 +20,16 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UsuarioRepository usuarioRepository;
     private final RoleRepository roleRepository;
+    private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(UsuarioRepository usuarioRepository,
                            RoleRepository roleRepository,
+                           EmpresaRepository empresaRepository,
                            PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.roleRepository = roleRepository;
+        this.empresaRepository = empresaRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -34,10 +40,20 @@ public class DataInitializer implements CommandLineRunner {
         ensureRole("ROLE_GESTOR");
         ensureRole("ROLE_TECNICO");
         ensureRole("ROLE_VISUALIZADOR");
-        ensureRole("ROLE_USER"); // backward compat
+        ensureRole("ROLE_USER");
 
-        ensureUsuario("superadmin@email.com", "Super Administrador", "123456", superAdminRole);
-        ensureUsuario("admin@email.com",      "Administrador",       "123456", adminRole);
+        Empresa empresa = ensureEmpresa("Demo Industrial", "00.000.000/0001-00");
+
+        ensureUsuario("superadmin@email.com", "Super Administrador", "123456", superAdminRole, empresa);
+        ensureUsuario("admin@email.com",      "Administrador",       "123456", adminRole,      empresa);
+
+        // Assign default empresa to any existing users without one (migration)
+        usuarioRepository.findAll().forEach(u -> {
+            if (u.getEmpresa() == null) {
+                u.setEmpresa(empresa);
+                usuarioRepository.save(u);
+            }
+        });
     }
 
     private Role ensureRole(String nome) {
@@ -47,7 +63,20 @@ public class DataInitializer implements CommandLineRunner {
         });
     }
 
-    private void ensureUsuario(String email, String nome, String senhaPlana, Role role) {
+    private Empresa ensureEmpresa(String nome, String cnpj) {
+        return empresaRepository.findByCnpj(cnpj).orElseGet(() -> {
+            Empresa e = new Empresa();
+            e.setNome(nome);
+            e.setCnpj(cnpj);
+            e.setPlano(PlanoAssinatura.ENTERPRISE);
+            e.setAtivo(true);
+            Empresa saved = empresaRepository.save(e);
+            log.info("Empresa default criada: {} [{}]", nome, saved.getId());
+            return saved;
+        });
+    }
+
+    private void ensureUsuario(String email, String nome, String senhaPlana, Role role, Empresa empresa) {
         Usuario u = usuarioRepository.findByEmail(email).orElse(null);
         if (u == null) {
             u = new Usuario();
@@ -57,7 +86,8 @@ public class DataInitializer implements CommandLineRunner {
         if (u.getNome() == null) u.setNome(nome);
         if (!u.isAtivo()) u.setAtivo(true);
         u.setRole(role);
+        u.setEmpresa(empresa);
         usuarioRepository.save(u);
-        log.info("Usuario garantido: {} [{}]", email, role.getNome());
+        log.info("Usuario garantido: {} [{}] empresa={}", email, role.getNome(), empresa.getNome());
     }
 }

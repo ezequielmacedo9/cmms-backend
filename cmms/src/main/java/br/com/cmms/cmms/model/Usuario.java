@@ -66,6 +66,10 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "role_id")
     private Role role;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "empresa_id")
+    private Empresa empresa;
+
     @PrePersist
     protected void onCreate() {
         if (dataCriacao == null) dataCriacao = LocalDateTime.now();
@@ -108,6 +112,8 @@ public class Usuario implements UserDetails {
     public LocalDateTime getDataCriacao() { return dataCriacao; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public Empresa getEmpresa() { return empresa; }
+    public void setEmpresa(Empresa empresa) { this.empresa = empresa; }
 
     // ── UserDetails ──────────────────────────────────────────────────────
 

@@ -1,7 +1,9 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.Security.TenantContext;
 import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
+import br.com.cmms.cmms.model.Empresa;
 import br.com.cmms.cmms.model.Manutencao;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
@@ -11,8 +13,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -41,6 +45,8 @@ public class ManutencaoService {
         Maquina maquina = maquinaRepository.findById(maquinaId)
             .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + maquinaId));
 
+        requireSameTenant(maquina.getEmpresa());
+
         Manutencao m = new Manutencao();
         m.setTipo(dto.tipo());
         m.setTecnico(dto.tecnico());
@@ -54,6 +60,7 @@ public class ManutencaoService {
         m.setCustoMaoDeObra(dto.custoMaoDeObra() != null ? dto.custoMaoDeObra() : 0.0);
         m.setObservacoesTecnico(dto.observacoesTecnico());
         m.setMaquina(maquina);
+        m.setEmpresa(maquina.getEmpresa());
 
         if ("CONCLUIDA".equals(m.getStatus()) && m.getDataConclusao() == null) {
             m.setDataConclusao(LocalDate.now());
@@ -63,9 +70,11 @@ public class ManutencaoService {
         return toDTO(manutencaoRepository.save(m));
     }
 
-    @Cacheable("manutencoes")
+    @Cacheable(value = "manutencoes", key = "T(br.com.cmms.cmms.Security.TenantContext).getEmpresaId()")
     public List<ManutencaoResponseDTO> listar() {
-        return manutencaoRepository.findAll().stream().map(this::toDTO).toList();
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId == null) return List.of();
+        return manutencaoRepository.findAllByEmpresaId(empresaId).stream().map(this::toDTO).toList();
     }
 
     public Map<String, Object> listarPaginado(int page, int size, String tipo, String status) {
@@ -96,6 +105,8 @@ public class ManutencaoService {
     public ManutencaoResponseDTO atualizar(Long id, ManutencaoRequestDTO dto) {
         Manutencao m = manutencaoRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Manutenção não encontrada: " + id));
+
+        requireSameTenant(m.getEmpresa());
 
         m.setTipo(dto.tipo());
         m.setTecnico(dto.tecnico());
@@ -150,6 +161,7 @@ public class ManutencaoService {
                 os.setDataManutencao(hoje);
                 os.setPrazoSla(hoje.plusDays(3));
                 os.setMaquina(maquina);
+                os.setEmpresa(maquina.getEmpresa());
                 manutencaoRepository.save(os);
                 geradas++;
                 log.info("OS preventiva gerada para máquina: {} ({})", maquina.getNome(), maquina.getId());
@@ -159,13 +171,20 @@ public class ManutencaoService {
     }
 
     public List<ManutencaoResponseDTO> listarPorMaquina(Long maquinaId) {
-        return manutencaoRepository.findByMaquinaIdOrderByDataManutencaoDesc(maquinaId)
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId == null) {
+            return manutencaoRepository.findByMaquinaIdOrderByDataManutencaoDesc(maquinaId)
+                .stream().map(this::toDTO).toList();
+        }
+        return manutencaoRepository.findByEmpresaIdAndMaquinaIdOrderByDataManutencaoDesc(empresaId, maquinaId)
             .stream().map(this::toDTO).toList();
     }
 
     public ManutencaoResponseDTO buscarPorId(Long id) {
-        return toDTO(manutencaoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Manutenção não encontrada: " + id)));
+        Manutencao m = manutencaoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Manutenção não encontrada: " + id));
+        requireSameTenant(m.getEmpresa());
+        return toDTO(m);
     }
 
     @Transactional
@@ -174,9 +193,9 @@ public class ManutencaoService {
         @CacheEvict(value = "dashboard-stats", allEntries = true)
     })
     public void deletar(Long id) {
-        if (!manutencaoRepository.existsById(id)) {
-            throw new RuntimeException("Manutenção não encontrada: " + id);
-        }
+        Manutencao m = manutencaoRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Manutenção não encontrada: " + id));
+        requireSameTenant(m.getEmpresa());
         log.info("Deletando manutenção id={}", id);
         manutencaoRepository.deleteById(id);
     }
@@ -200,5 +219,13 @@ public class ManutencaoService {
             m.isSlaVencido(),
             maquinaInfo
         );
+    }
+
+    private void requireSameTenant(Empresa empresa) {
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId == null) return;
+        if (empresa == null || !empresaId.equals(empresa.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado");
+        }
     }
 }

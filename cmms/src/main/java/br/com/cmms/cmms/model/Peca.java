@@ -31,6 +31,10 @@ public class Peca {
     @Column(name = "quantidade_minima")
     private int quantidadeMinima = 0;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "empresa_id")
+    private Empresa empresa;
+
     @ManyToMany(mappedBy = "pecasUtilizadas")
     private List<Manutencao> manutencoes = new ArrayList<>();
 
@@ -87,6 +91,9 @@ public class Peca {
     public void setCustoUnitario(double custoUnitario) {
         this.custoUnitario = custoUnitario;
     }
+
+    public Empresa getEmpresa() { return empresa; }
+    public void setEmpresa(Empresa empresa) { this.empresa = empresa; }
 
     public int getQuantidadeMinima() { return quantidadeMinima; }
     public void setQuantidadeMinima(int quantidadeMinima) { this.quantidadeMinima = quantidadeMinima; }

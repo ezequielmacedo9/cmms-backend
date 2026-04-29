@@ -9,8 +9,13 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface ManutencaoRepository extends JpaRepository<Manutencao, Long> {
-    List<Manutencao> findByMaquinaIdOrderByDataManutencaoDesc(Long maquinaId);
 
+    List<Manutencao> findAllByEmpresaId(Long empresaId);
+
+    List<Manutencao> findByEmpresaIdAndMaquinaIdOrderByDataManutencaoDesc(Long empresaId, Long maquinaId);
+
+    // cross-tenant (scheduler/reports)
+    List<Manutencao> findByMaquinaIdOrderByDataManutencaoDesc(Long maquinaId);
     List<Manutencao> findByDataManutencaoBetween(LocalDate start, LocalDate end);
 
     @Query("SELECT m FROM Manutencao m WHERE m.tipo = :tipo ORDER BY m.maquina.id ASC, m.dataManutencao ASC")

@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.Security.TenantContext;
 import br.com.cmms.cmms.dto.DashboardStatsDTO;
 import br.com.cmms.cmms.model.Manutencao;
 import br.com.cmms.cmms.model.Maquina;
@@ -34,13 +35,20 @@ public class DashboardService {
         this.pecaRepository = pecaRepository;
     }
 
-    @Cacheable("dashboard-stats")
+    @Cacheable(value = "dashboard-stats", key = "T(br.com.cmms.cmms.Security.TenantContext).getEmpresaId()")
     public DashboardStatsDTO getStats() {
-        log.info("Computando estatísticas do dashboard");
+        Long empresaId = TenantContext.getEmpresaId();
+        log.info("Computando estatísticas do dashboard (empresa={})", empresaId);
 
-        List<Maquina> maquinas = maquinaRepository.findAll();
-        List<Manutencao> manutencoes = manutencaoRepository.findAll();
-        List<br.com.cmms.cmms.model.Peca> pecas = pecaRepository.findAll();
+        List<Maquina> maquinas = empresaId != null
+            ? maquinaRepository.findAllByEmpresaId(empresaId)
+            : List.of();
+        List<Manutencao> manutencoes = empresaId != null
+            ? manutencaoRepository.findAllByEmpresaId(empresaId)
+            : List.of();
+        List<br.com.cmms.cmms.model.Peca> pecas = empresaId != null
+            ? pecaRepository.findAllByEmpresaId(empresaId)
+            : List.of();
 
         long totalMaquinas = maquinas.size();
         long maquinasAtivas = maquinas.stream().filter(m -> "ATIVO".equals(m.getStatus())).count();
@@ -52,7 +60,7 @@ public class DashboardService {
 
         LocalDate hoje = LocalDate.now();
         long manutencoesVencidas = maquinas.stream()
-            .filter(m -> m.getIntervaloPreventivaDias() != null && m.getIntervaloPreventivaDias() > 0)
+            .filter(m -> m.getIntervaloPreventivaDias() > 0)
             .filter(m -> {
                 if (m.getDataUltimaManutencao() == null) return true;
                 return m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()).isBefore(hoje);
@@ -135,7 +143,7 @@ public class DashboardService {
 
     private List<DashboardStatsDTO.OverdueAlert> computeAlerts(List<Maquina> maquinas, LocalDate hoje) {
         return maquinas.stream()
-            .filter(m -> m.getIntervaloPreventivaDias() != null && m.getIntervaloPreventivaDias() > 0)
+            .filter(m -> m.getIntervaloPreventivaDias() > 0)
             .filter(m -> {
                 if (m.getDataUltimaManutencao() == null) return true;
                 return m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()).isBefore(hoje);

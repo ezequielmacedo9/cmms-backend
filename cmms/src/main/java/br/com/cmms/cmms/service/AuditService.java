@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.Security.TenantContext;
 import br.com.cmms.cmms.model.AuditLog;
 import br.com.cmms.cmms.repository.AuditLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +17,9 @@ public class AuditService {
     @Async
     public void log(String userEmail, Long userId, String acao, String recurso,
                     Long recursoId, String detalhes, String ip) {
-        repo.save(new AuditLog(userEmail, userId, acao, recurso, recursoId, detalhes, ip));
+        AuditLog entry = new AuditLog(userEmail, userId, acao, recurso, recursoId, detalhes, ip);
+        entry.setEmpresaId(TenantContext.getEmpresaId());
+        repo.save(entry);
     }
 
     @Async

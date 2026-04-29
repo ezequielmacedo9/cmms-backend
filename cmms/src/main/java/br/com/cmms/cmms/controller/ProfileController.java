@@ -93,19 +93,19 @@ public class ProfileController {
     }
 
     private Map<String, Object> profileMap(Usuario u) {
-        return Map.of(
-            "id",             u.getId(),
-            "email",          u.getEmail(),
-            "nome",           nvl(u.getNome()),
-            "telefone",       nvl(u.getTelefone()),
-            "cargo",          nvl(u.getCargo()),
-            "departamento",   nvl(u.getDepartamento()),
-            "avatarBase64",   nvl(u.getAvatarBase64()),
-            "totpEnabled",    u.isTotpEnabled(),
-            "role",           u.getRole().getNome(),
-            "dataCriacao",    u.getDataCriacao() != null ? u.getDataCriacao().toString() : "",
-            "ultimoLogin",    u.getUltimoLogin() != null ? u.getUltimoLogin().toString() : ""
-        );
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("id",           u.getId());
+        m.put("email",        u.getEmail());
+        m.put("nome",         nvl(u.getNome()));
+        m.put("telefone",     nvl(u.getTelefone()));
+        m.put("cargo",        nvl(u.getCargo()));
+        m.put("departamento", nvl(u.getDepartamento()));
+        m.put("avatarBase64", nvl(u.getAvatarBase64()));
+        m.put("totpEnabled",  u.isTotpEnabled());
+        m.put("role",         u.getRole().getNome());
+        m.put("dataCriacao",  u.getDataCriacao() != null ? u.getDataCriacao().toString() : "");
+        m.put("ultimoLogin",  u.getUltimoLogin() != null ? u.getUltimoLogin().toString() : "");
+        return m;
     }
 
     private String nvl(String s) { return s != null ? s : ""; }

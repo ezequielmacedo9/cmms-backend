@@ -36,9 +36,11 @@ public class JwtService {
     }
 
     public String gerarToken(Usuario usuario) {
+        Long empresaId = usuario.getEmpresa() != null ? usuario.getEmpresa().getId() : null;
         return Jwts.builder()
                 .setSubject(usuario.getEmail())
                 .claim("role", usuario.getRole().getNome())
+                .claim("empresaId", empresaId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignKey(), SignatureAlgorithm.HS256)
@@ -51,6 +53,14 @@ public class JwtService {
 
     public String extrairRole(String token) {
         return extrairClaims(token).get("role", String.class);
+    }
+
+    public Long extrairEmpresaId(String token) {
+        Object val = extrairClaims(token).get("empresaId");
+        if (val == null) return null;
+        if (val instanceof Long l) return l;
+        if (val instanceof Integer i) return i.longValue();
+        return null;
     }
 
     private Claims extrairClaims(String token) {

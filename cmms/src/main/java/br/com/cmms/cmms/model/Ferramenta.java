@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 import java.time.LocalDate;
@@ -86,6 +87,14 @@ public class Ferramenta {
     public void setResponsavel(String responsavel) {
         this.responsavel = responsavel;
     }
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "empresa_id")
+    @JsonIgnore
+    private Empresa empresa;
+
+    public Empresa getEmpresa() { return empresa; }
+    public void setEmpresa(Empresa empresa) { this.empresa = empresa; }
 
     @ManyToMany(mappedBy = "ferramentasUtilizadas")
     private List<Manutencao> manutencoes = new ArrayList<>();

@@ -1,20 +1,19 @@
 package br.com.cmms.cmms.app;
 
+import br.com.cmms.cmms.dto.MaquinaRequestDTO;
+import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.dto.PecaRequestDTO;
 import br.com.cmms.cmms.dto.PecaResponseDTO;
-import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.service.FerramentaService;
 import br.com.cmms.cmms.service.ManutencaoService;
 import br.com.cmms.cmms.service.MaquinaService;
 import br.com.cmms.cmms.service.PecaService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Scanner;
 
-@Component
 public class MenuPrincipal {
 
     private final MaquinaService maquinaService;
@@ -163,30 +162,24 @@ public class MenuPrincipal {
     // ===================== MÁQUINAS =====================
 
     private void cadastrarMaquina() {
-        Maquina maquina = new Maquina();
-
         System.out.print("Nome: ");
-        maquina.setNome(scanner.nextLine());
-
+        String nome = scanner.nextLine();
         System.out.print("Setor: ");
-        maquina.setSetor(scanner.nextLine());
-
-        System.out.print("Status (ATIVA/INATIVA): ");
-        maquina.setStatus(scanner.nextLine());
-
+        String setor = scanner.nextLine();
+        System.out.print("Status (ATIVO/INATIVO): ");
+        String status = scanner.nextLine();
         System.out.print("Intervalo preventiva (dias): ");
-        maquina.setIntervaloPreventivaDias(scanner.nextInt());
+        int intervalo = scanner.nextInt();
         scanner.nextLine();
-
         System.out.print("Data última manutenção (yyyy-MM-dd): ");
-        maquina.setDataUltimaManutencao(LocalDate.parse(scanner.nextLine()));
+        java.time.LocalDate data = java.time.LocalDate.parse(scanner.nextLine());
 
-        maquinaService.cadastrar(maquina);
+        maquinaService.cadastrar(new MaquinaRequestDTO(nome, setor, status, "MEDIA", intervalo, data));
         System.out.println("Máquina cadastrada!");
     }
 
     private void listarMaquinas() {
-        List<Maquina> maquinas = maquinaService.listar();
+        java.util.List<MaquinaResponseDTO> maquinas = maquinaService.listar();
 
         if (maquinas.isEmpty()) {
             System.out.println("Nenhuma máquina cadastrada.");
@@ -194,9 +187,7 @@ public class MenuPrincipal {
         }
 
         maquinas.forEach(m -> System.out.println(
-                "ID: " + m.getId() +
-                        " | Nome: " + m.getNome() +
-                        " | Setor: " + m.getSetor()
+                "ID: " + m.id() + " | Nome: " + m.nome() + " | Setor: " + m.setor()
         ));
     }
 
@@ -205,16 +196,15 @@ public class MenuPrincipal {
         long id = scanner.nextLong();
         scanner.nextLine();
 
-        Maquina maquina = maquinaService.buscarPorId(Long.valueOf(id));
+        MaquinaResponseDTO maquina = maquinaService.buscarPorId(id);
         if (maquina == null) {
             System.out.println("Máquina não encontrada.");
             return;
         }
 
         System.out.print("Novo nome: ");
-        maquina.setNome(scanner.nextLine());
-
-        maquinaService.atualizar(Long.valueOf(id), maquina);
+        String novoNome = scanner.nextLine();
+        maquinaService.atualizar(id, new MaquinaRequestDTO(novoNome, maquina.setor(), maquina.status(), maquina.prioridade(), maquina.intervaloPreventivaDias(), maquina.dataUltimaManutencao()));
         System.out.println("Máquina atualizada!");
     }
 

@@ -1,10 +1,12 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.Security.TenantContext;
 import br.com.cmms.cmms.dto.AlterarRoleRequestDTO;
 import br.com.cmms.cmms.dto.ConvidarUsuarioRequestDTO;
 import br.com.cmms.cmms.dto.UsuarioResponseDTO;
 import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
+import br.com.cmms.cmms.repository.EmpresaRepository;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
@@ -24,21 +26,27 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final RoleRepository roleRepository;
+    private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
 
     public UsuarioService(UsuarioRepository usuarioRepository,
                           RoleRepository roleRepository,
+                          EmpresaRepository empresaRepository,
                           PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.roleRepository = roleRepository;
+        this.empresaRepository = empresaRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     public List<UsuarioResponseDTO> listar() {
-        return usuarioRepository.findAllByOrderByDataCriacaoDesc()
-            .stream()
-            .map(UsuarioResponseDTO::from)
-            .toList();
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId == null) {
+            return usuarioRepository.findAllByOrderByDataCriacaoDesc()
+                .stream().map(UsuarioResponseDTO::from).toList();
+        }
+        return usuarioRepository.findAllByEmpresaIdOrderByDataCriacaoDesc(empresaId)
+            .stream().map(UsuarioResponseDTO::from).toList();
     }
 
     public UsuarioResponseDTO getMeuPerfil(String email) {
@@ -61,12 +69,17 @@ public class UsuarioService {
         Role role = roleRepository.findByNome(dto.getRoleNome())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role não encontrada"));
 
+        Long empresaId = TenantContext.getEmpresaId();
+
         Usuario novo = new Usuario();
         novo.setEmail(dto.getEmail());
         novo.setNome(dto.getNome());
         novo.setSenha(passwordEncoder.encode(dto.getSenha()));
         novo.setRole(role);
         novo.setAtivo(true);
+        if (empresaId != null) {
+            novo.setEmpresa(empresaRepository.getReferenceById(empresaId));
+        }
 
         return UsuarioResponseDTO.from(usuarioRepository.save(novo));
     }
@@ -79,12 +92,14 @@ public class UsuarioService {
         Usuario operador = findByEmailOrThrow(emailOperador);
         Usuario alvo = findByIdOrThrow(id);
 
+        requireSameEmpresa(operador, alvo);
+
         if (alvo.getId().equals(operador.getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Você não pode alterar sua própria role");
         }
 
-        validarPermissaoRole(operador, alvo.getRole().getNome()); // pode gerenciar o alvo atual?
-        validarPermissaoRole(operador, dto.getRoleNome());        // pode atribuir a nova role?
+        validarPermissaoRole(operador, alvo.getRole().getNome());
+        validarPermissaoRole(operador, dto.getRoleNome());
 
         Role novaRole = roleRepository.findByNome(dto.getRoleNome())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Role não encontrada"));
@@ -134,13 +149,17 @@ public class UsuarioService {
     private void validarOperadorPodeGerenciarAlvo(Long idAlvo, String emailOperador) {
         Usuario operador = findByEmailOrThrow(emailOperador);
         Usuario alvo = findByIdOrThrow(idAlvo);
+        requireSameEmpresa(operador, alvo);
         validarPermissaoRole(operador, alvo.getRole().getNome());
     }
 
-    /**
-     * SUPER_ADMIN pode gerenciar qualquer role.
-     * ADMIN pode gerenciar GESTOR, TECNICO e VISUALIZADOR (não pode gerenciar SUPER_ADMIN ou outros ADMIN).
-     */
+    private void requireSameEmpresa(Usuario operador, Usuario alvo) {
+        if (operador.getEmpresa() == null || alvo.getEmpresa() == null) return;
+        if (!operador.getEmpresa().getId().equals(alvo.getEmpresa().getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuário pertence a outra empresa");
+        }
+    }
+
     private void validarPermissaoRole(Usuario operador, String roleAlvo) {
         String roleOp = operador.getRole().getNome();
         if ("ROLE_SUPER_ADMIN".equals(roleOp)) return;

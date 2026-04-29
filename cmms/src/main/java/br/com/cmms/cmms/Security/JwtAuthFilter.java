@@ -53,6 +53,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         try {
             String email = jwtService.extrairEmail(token);
             String role = jwtService.extrairRole(token);
+            Long empresaId = jwtService.extrairEmpresaId(token);
+
+            TenantContext.setEmpresaId(empresaId);
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
@@ -69,6 +72,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }

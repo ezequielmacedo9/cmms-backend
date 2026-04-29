@@ -55,6 +55,10 @@ public class Manutencao {
     @Column(name = "observacoes_tecnico", length = 1000)
     private String observacoesTecnico;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "empresa_id")
+    private Empresa empresa;
+
     @ManyToOne
     @JoinColumn(name = "maquina_id", nullable = false)
     private Maquina maquina;
@@ -163,6 +167,9 @@ public class Manutencao {
 
     public String getObservacoesTecnico() { return observacoesTecnico; }
     public void setObservacoesTecnico(String observacoesTecnico) { this.observacoesTecnico = observacoesTecnico; }
+
+    public Empresa getEmpresa() { return empresa; }
+    public void setEmpresa(Empresa empresa) { this.empresa = empresa; }
 
     public boolean isSlaVencido() {
         return prazoSla != null && !"CONCLUIDA".equals(status) && LocalDate.now().isAfter(prazoSla);

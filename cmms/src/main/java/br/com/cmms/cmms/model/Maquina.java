@@ -37,6 +37,11 @@ public class Maquina {
     private String prioridade = "MEDIA";
 
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "empresa_id")
+    @JsonIgnore
+    private Empresa empresa;
+
     @OneToMany(
             mappedBy = "maquina",
             cascade = CascadeType.ALL,
@@ -108,6 +113,9 @@ public class Maquina {
     public void setPrioridade(String prioridade) {
         this.prioridade = prioridade;
     }
+
+    public Empresa getEmpresa() { return empresa; }
+    public void setEmpresa(Empresa empresa) { this.empresa = empresa; }
 
     public List<Manutencao> getListaDeManutencoes() {
         return listaDeManutencoes;

@@ -1,16 +1,21 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.Security.TenantContext;
 import br.com.cmms.cmms.dto.MaquinaRequestDTO;
 import br.com.cmms.cmms.dto.MaquinaResponseDTO;
+import br.com.cmms.cmms.model.Empresa;
 import br.com.cmms.cmms.model.Maquina;
+import br.com.cmms.cmms.repository.EmpresaRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -21,9 +26,11 @@ public class MaquinaService {
     private static final Logger log = LoggerFactory.getLogger(MaquinaService.class);
 
     private final MaquinaRepository maquinaRepository;
+    private final EmpresaRepository empresaRepository;
 
-    public MaquinaService(MaquinaRepository maquinaRepository) {
+    public MaquinaService(MaquinaRepository maquinaRepository, EmpresaRepository empresaRepository) {
         this.maquinaRepository = maquinaRepository;
+        this.empresaRepository = empresaRepository;
     }
 
     @Transactional
@@ -34,18 +41,26 @@ public class MaquinaService {
     public MaquinaResponseDTO cadastrar(MaquinaRequestDTO dto) {
         Maquina m = new Maquina();
         applyDto(dto, m);
-        log.info("Cadastrando máquina: {}", dto.nome());
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId != null) {
+            m.setEmpresa(empresaRepository.getReferenceById(empresaId));
+        }
+        log.info("Cadastrando máquina: {} (empresa={})", dto.nome(), empresaId);
         return toDTO(maquinaRepository.save(m));
     }
 
-    @Cacheable("maquinas")
+    @Cacheable(value = "maquinas", key = "T(br.com.cmms.cmms.Security.TenantContext).getEmpresaId()")
     public List<MaquinaResponseDTO> listar() {
-        return maquinaRepository.findAll().stream().map(this::toDTO).toList();
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId == null) return List.of();
+        return maquinaRepository.findAllByEmpresaId(empresaId).stream().map(this::toDTO).toList();
     }
 
     public MaquinaResponseDTO buscarPorId(Long id) {
-        return toDTO(maquinaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id)));
+        Maquina m = maquinaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
+        requireSameTenant(m.getEmpresa());
+        return toDTO(m);
     }
 
     @Transactional
@@ -56,6 +71,7 @@ public class MaquinaService {
     public MaquinaResponseDTO atualizar(Long id, MaquinaRequestDTO dto) {
         Maquina m = maquinaRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
+        requireSameTenant(m.getEmpresa());
         applyDto(dto, m);
         log.info("Atualizando máquina id={}", id);
         return toDTO(maquinaRepository.save(m));
@@ -67,9 +83,9 @@ public class MaquinaService {
         @CacheEvict(value = "dashboard-stats", allEntries = true)
     })
     public void deletar(Long id) {
-        if (!maquinaRepository.existsById(id)) {
-            throw new RuntimeException("Máquina não encontrada: " + id);
-        }
+        Maquina m = maquinaRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
+        requireSameTenant(m.getEmpresa());
         log.info("Deletando máquina id={}", id);
         maquinaRepository.deleteById(id);
     }
@@ -94,8 +110,16 @@ public class MaquinaService {
     }
 
     private boolean isVencida(Maquina m) {
-        if (m.getIntervaloPreventivaDias() == null || m.getIntervaloPreventivaDias() == 0) return false;
+        if (m.getIntervaloPreventivaDias() == 0) return false;
         if (m.getDataUltimaManutencao() == null) return true;
         return m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()).isBefore(LocalDate.now());
+    }
+
+    private void requireSameTenant(Empresa empresa) {
+        Long empresaId = TenantContext.getEmpresaId();
+        if (empresaId == null) return; // scheduler/system context
+        if (empresa == null || !empresaId.equals(empresa.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Acesso negado");
+        }
     }
 }

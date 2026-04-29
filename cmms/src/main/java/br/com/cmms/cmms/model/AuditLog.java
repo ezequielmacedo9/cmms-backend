@@ -35,6 +35,9 @@ public class AuditLog {
     @Column(length = 50)
     private String ip;
 
+    @Column(name = "empresa_id")
+    private Long empresaId;
+
     @Column(nullable = false)
     private LocalDateTime timestamp;
 
@@ -64,4 +67,6 @@ public class AuditLog {
     public String getIp() { return ip; }
     public void setIp(String ip) { this.ip = ip; }
     public LocalDateTime getTimestamp() { return timestamp; }
+    public Long getEmpresaId() { return empresaId; }
+    public void setEmpresaId(Long empresaId) { this.empresaId = empresaId; }
 }
