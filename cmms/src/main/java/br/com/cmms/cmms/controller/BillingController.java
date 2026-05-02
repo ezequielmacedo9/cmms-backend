@@ -2,6 +2,10 @@ package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.model.PlanoAssinatura;
 import br.com.cmms.cmms.service.BillingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -12,7 +16,12 @@ import java.util.Map;
 @RequestMapping("/api/billing")
 public class BillingController {
 
+    private static final Logger log = LoggerFactory.getLogger(BillingController.class);
+
     private final BillingService billingService;
+
+    @Value("${asaas.webhook.token:}")
+    private String webhookToken;
 
     public BillingController(BillingService billingService) {
         this.billingService = billingService;
@@ -50,7 +59,19 @@ public class BillingController {
     }
 
     @PostMapping("/webhook")
-    public ResponseEntity<Void> webhook(@RequestBody String payload) {
+    public ResponseEntity<Void> webhook(
+            @RequestHeader(value = "asaas-access-token", required = false) String token,
+            @RequestBody String payload) {
+
+        if (webhookToken != null && !webhookToken.isBlank()) {
+            if (!webhookToken.equals(token)) {
+                log.warn("Webhook Asaas rejeitado: token inválido ou ausente");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+        } else {
+            log.warn("ASAAS_WEBHOOK_TOKEN não configurado — webhook aceito sem autenticação");
+        }
+
         billingService.processarWebhook(payload);
         return ResponseEntity.ok().build();
     }
