@@ -1,5 +1,7 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.dto.FerramentaRequestDTO;
+import br.com.cmms.cmms.dto.FerramentaResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Ferramenta;
 import br.com.cmms.cmms.repository.FerramentaRepository;
@@ -9,11 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * Lightweight service over the {@link Ferramenta} aggregate.
- *
- * <p>Will be expanded in FASE 2B-7 with DTO-based methods. For now it just
- * wraps the repository, but already uses constructor injection and the new
- * exception hierarchy so the rest of the codebase can reference it safely.
+ * Service over the {@link Ferramenta} aggregate. Exposes DTOs only;
+ * entities never cross the service boundary.
  */
 @Service
 public class FerramentaService {
@@ -25,25 +24,27 @@ public class FerramentaService {
     }
 
     @Transactional
-    public Ferramenta cadastrar(Ferramenta ferramenta) {
-        return ferramentaRepository.save(ferramenta);
+    public FerramentaResponseDTO cadastrar(FerramentaRequestDTO dto) {
+        Ferramenta f = new Ferramenta();
+        applyDto(dto, f);
+        return FerramentaResponseDTO.from(ferramentaRepository.save(f));
     }
 
-    public List<Ferramenta> listar() {
-        return ferramentaRepository.findAll();
+    public List<FerramentaResponseDTO> listar() {
+        return ferramentaRepository.findAll().stream()
+            .map(FerramentaResponseDTO::from)
+            .toList();
     }
 
-    public Ferramenta buscarPorId(Long id) {
-        return ferramentaRepository.findById(id)
-            .orElseThrow(() -> NotFoundException.of("Ferramenta", id));
+    public FerramentaResponseDTO buscarPorId(Long id) {
+        return FerramentaResponseDTO.from(findOrThrow(id));
     }
 
     @Transactional
-    public Ferramenta atualizar(Long id, Ferramenta ferramenta) {
-        Ferramenta existente = ferramentaRepository.findById(id)
-            .orElseThrow(() -> NotFoundException.of("Ferramenta", id));
-        existente.setNome(ferramenta.getNome());
-        return ferramentaRepository.save(existente);
+    public FerramentaResponseDTO atualizar(Long id, FerramentaRequestDTO dto) {
+        Ferramenta f = findOrThrow(id);
+        applyDto(dto, f);
+        return FerramentaResponseDTO.from(ferramentaRepository.save(f));
     }
 
     @Transactional
@@ -52,5 +53,21 @@ public class FerramentaService {
             throw NotFoundException.of("Ferramenta", id);
         }
         ferramentaRepository.deleteById(id);
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────
+
+    private Ferramenta findOrThrow(Long id) {
+        return ferramentaRepository.findById(id)
+            .orElseThrow(() -> NotFoundException.of("Ferramenta", id));
+    }
+
+    private void applyDto(FerramentaRequestDTO dto, Ferramenta f) {
+        f.setNome(dto.nome());
+        f.setCodigo(dto.codigo());
+        f.setStatus(dto.status());
+        f.setLocalizacao(dto.localizacao());
+        f.setResponsavel(dto.responsavel());
+        f.setDataUltimaManutencao(dto.dataUltimaManutencao());
     }
 }
