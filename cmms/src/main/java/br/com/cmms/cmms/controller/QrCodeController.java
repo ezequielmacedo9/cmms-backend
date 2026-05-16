@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.controller;
 
+import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import com.google.zxing.BarcodeFormat;
@@ -12,11 +13,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Map;
-import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/api/maquinas")
@@ -33,7 +32,7 @@ public class QrCodeController {
     public ResponseEntity<byte[]> qrcode(@PathVariable Long id,
                                           @RequestParam(defaultValue = "200") int size) {
         Maquina m = repo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Máquina não encontrada"));
+            .orElseThrow(() -> NotFoundException.of("Máquina", id));
 
         String content = frontendUrl + "/maquinas?id=" + id +
                          "&nome=" + encUrl(m.getNome()) +
@@ -54,6 +53,7 @@ public class QrCodeController {
                 .contentType(MediaType.IMAGE_PNG)
                 .body(bos.toByteArray());
         } catch (Exception e) {
+            // Plain RuntimeException → handled as 500 by GlobalExceptionHandler.
             throw new RuntimeException("QR code generation failed", e);
         }
     }

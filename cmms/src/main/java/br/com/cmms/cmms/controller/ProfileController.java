@@ -1,5 +1,8 @@
 package br.com.cmms.cmms.controller;
 
+import br.com.cmms.cmms.exception.NotFoundException;
+import br.com.cmms.cmms.exception.UnauthorizedException;
+import br.com.cmms.cmms.exception.ValidationException;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import br.com.cmms.cmms.service.AuditService;
@@ -57,9 +60,11 @@ public class ProfileController {
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails ud) {
         String base64 = body.get("avatarBase64");
-        if (base64 == null || base64.isBlank()) return ResponseEntity.badRequest().build();
+        if (base64 == null || base64.isBlank()) {
+            throw new ValidationException("AVATAR_REQUIRED", "Imagem do avatar é obrigatória.");
+        }
         if (base64.length() > 400_000) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Imagem muito grande (máx 300KB)"));
+            throw new ValidationException("AVATAR_TOO_LARGE", "Imagem muito grande (máximo 300KB).");
         }
         Usuario u = findUser(ud.getUsername());
         u.setAvatarBase64(base64);
@@ -74,22 +79,26 @@ public class ProfileController {
             HttpServletRequest request) {
         Usuario u = findUser(ud.getUsername());
         if (!passwordEncoder.matches(req.senhaAtual, u.getSenha())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Senha atual incorreta"));
+            throw new UnauthorizedException("PASSWORD_INCORRECT", "Senha atual incorreta.");
         }
+        // Bean Validation already enforces @Size(min=8) on req.novaSenha; this
+        // is a defensive check should the annotation ever be relaxed.
         if (req.novaSenha.length() < 8) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Nova senha deve ter pelo menos 8 caracteres"));
+            throw new ValidationException("PASSWORD_TOO_SHORT",
+                "Nova senha deve ter pelo menos 8 caracteres.");
         }
         u.setSenha(passwordEncoder.encode(req.novaSenha));
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "PASSWORD_CHANGE", "USUARIO", u.getId(), "Senha alterada", AuditService.getClientIp(request));
-        return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso"));
+        audit.log(u.getEmail(), u.getId(), "PASSWORD_CHANGE", "USUARIO", u.getId(),
+            "Senha alterada", AuditService.getClientIp(request));
+        return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso."));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
 
     private Usuario findUser(String email) {
         return usuarioRepo.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+            .orElseThrow(() -> new NotFoundException("USUARIO_NOT_FOUND", "Usuário não encontrado."));
     }
 
     private Map<String, Object> profileMap(Usuario u) {

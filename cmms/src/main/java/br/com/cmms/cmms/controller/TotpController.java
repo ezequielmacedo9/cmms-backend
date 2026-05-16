@@ -1,5 +1,8 @@
 package br.com.cmms.cmms.controller;
 
+import br.com.cmms.cmms.exception.NotFoundException;
+import br.com.cmms.cmms.exception.UnauthorizedException;
+import br.com.cmms.cmms.exception.ValidationException;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import br.com.cmms.cmms.service.AuditService;
@@ -8,19 +11,28 @@ import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.qrcode.QRCodeWriter;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.http.MediaType;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Base64;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profile/2fa")
 public class TotpController {
+
+    private static final String PENDING_PREFIX = "PENDING:";
 
     private final TotpService totpService;
     private final UsuarioRepository usuarioRepo;
@@ -35,86 +47,83 @@ public class TotpController {
         this.passwordEncoder = passwordEncoder;
     }
 
-    /** Step 1: generate secret + QR code data URI */
+    /** Step 1: generate secret + QR code data URI. */
     @PostMapping("/setup")
     public ResponseEntity<Map<String, Object>> setup(@AuthenticationPrincipal UserDetails ud) {
         Usuario u = findUser(ud.getUsername());
         String secret = totpService.generateSecret();
         String uri = totpService.buildOtpAuthUri("CMMS", u.getEmail(), secret);
 
-        // temporarily store in session — store in user field with a "pending" prefix
-        u.setTotpSecret("PENDING:" + secret);
+        // Mark as pending until the user proves possession with /verify.
+        u.setTotpSecret(PENDING_PREFIX + secret);
         u.setTotpEnabled(false);
         usuarioRepo.save(u);
 
-        // Generate QR code as base64 data URI
-        String qrDataUri = generateQrDataUri(uri);
         return ResponseEntity.ok(Map.of(
-            "secret", secret,
-            "qrCodeDataUri", qrDataUri,
+            "secret",         secret,
+            "qrCodeDataUri",  generateQrDataUri(uri),
             "manualEntryKey", secret
         ));
     }
 
-    /** Step 2: verify TOTP code to confirm setup and enable 2FA */
+    /** Step 2: verify TOTP code to confirm setup and enable 2FA. */
     @PostMapping("/verify")
     public ResponseEntity<Map<String, String>> verify(
-            @RequestBody Map<String, String> body,
+            @Valid @RequestBody CodeRequest body,
             @AuthenticationPrincipal UserDetails ud,
             HttpServletRequest request) {
-        String code = body.get("code");
         Usuario u = findUser(ud.getUsername());
-        String storedSecret = u.getTotpSecret();
+        String stored = u.getTotpSecret();
 
-        if (storedSecret == null || !storedSecret.startsWith("PENDING:")) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Setup não iniciado. Chame /setup primeiro."));
+        if (stored == null || !stored.startsWith(PENDING_PREFIX)) {
+            throw new ValidationException("TOTP_SETUP_NOT_STARTED",
+                "Setup não iniciado. Chame /setup primeiro.");
+        }
+        String secret = stored.substring(PENDING_PREFIX.length());
+        if (!totpService.verifyCode(secret, body.code())) {
+            throw new ValidationException("TOTP_CODE_INVALID", "Código inválido.");
         }
 
-        String realSecret = storedSecret.substring(8); // strip "PENDING:"
-        if (!totpService.verifyCode(realSecret, code)) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Código inválido"));
-        }
-
-        u.setTotpSecret(realSecret);
+        u.setTotpSecret(secret);
         u.setTotpEnabled(true);
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "2FA_ENABLED", "USUARIO", u.getId(), "2FA ativado", AuditService.getClientIp(request));
-        return ResponseEntity.ok(Map.of("message", "2FA ativado com sucesso"));
+        audit.log(u.getEmail(), u.getId(), "2FA_ENABLED", "USUARIO", u.getId(),
+            "2FA ativado", AuditService.getClientIp(request));
+        return ResponseEntity.ok(Map.of("message", "2FA ativado com sucesso."));
     }
 
-    /** Disable 2FA (requires current password confirmation) */
+    /** Disable 2FA (requires current password confirmation). */
     @DeleteMapping
     public ResponseEntity<Map<String, String>> disable(
-            @RequestBody Map<String, String> body,
+            @Valid @RequestBody PasswordRequest body,
             @AuthenticationPrincipal UserDetails ud,
             HttpServletRequest request) {
-        String senha = body.get("senha");
         Usuario u = findUser(ud.getUsername());
-        if (senha == null || !passwordEncoder.matches(senha, u.getSenha())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Senha incorreta"));
+        if (!passwordEncoder.matches(body.senha(), u.getSenha())) {
+            throw new UnauthorizedException("PASSWORD_INCORRECT", "Senha incorreta.");
         }
         u.setTotpSecret(null);
         u.setTotpEnabled(false);
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "2FA_DISABLED", "USUARIO", u.getId(), "2FA desativado", AuditService.getClientIp(request));
-        return ResponseEntity.ok(Map.of("message", "2FA desativado"));
+        audit.log(u.getEmail(), u.getId(), "2FA_DISABLED", "USUARIO", u.getId(),
+            "2FA desativado", AuditService.getClientIp(request));
+        return ResponseEntity.ok(Map.of("message", "2FA desativado."));
     }
 
-    /** Verify 2FA code during login (call after password auth) */
+    /** Verify 2FA code during login (call after password auth). */
     @PostMapping("/login-verify")
-    public ResponseEntity<Map<String, Boolean>> loginVerify(@RequestBody Map<String, String> body,
+    public ResponseEntity<Map<String, Boolean>> loginVerify(@Valid @RequestBody CodeRequest body,
                                                              @AuthenticationPrincipal UserDetails ud) {
-        String code = body.get("code");
         Usuario u = findUser(ud.getUsername());
         if (!u.isTotpEnabled()) return ResponseEntity.ok(Map.of("valid", true));
-        return ResponseEntity.ok(Map.of("valid", totpService.verifyCode(u.getTotpSecret(), code)));
+        return ResponseEntity.ok(Map.of("valid", totpService.verifyCode(u.getTotpSecret(), body.code())));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
 
     private Usuario findUser(String email) {
         return usuarioRepo.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+            .orElseThrow(() -> new NotFoundException("USUARIO_NOT_FOUND", "Usuário não encontrado."));
     }
 
     private String generateQrDataUri(String content) {
@@ -123,9 +132,12 @@ public class TotpController {
             var matrix = writer.encode(content, BarcodeFormat.QR_CODE, 200, 200);
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             MatrixToImageWriter.writeToStream(matrix, "PNG", bos);
-            return "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(bos.toByteArray());
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(bos.toByteArray());
         } catch (Exception e) {
             throw new RuntimeException("QR code generation failed", e);
         }
     }
+
+    public record CodeRequest(@NotBlank @Size(min = 6, max = 8) String code) {}
+    public record PasswordRequest(@NotBlank @Size(min = 1, max = 100) String senha) {}
 }
