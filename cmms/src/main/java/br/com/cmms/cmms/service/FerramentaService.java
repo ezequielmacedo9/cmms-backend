@@ -1,45 +1,56 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Ferramenta;
 import br.com.cmms.cmms.repository.FerramentaRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Lightweight service over the {@link Ferramenta} aggregate.
+ *
+ * <p>Will be expanded in FASE 2B-7 with DTO-based methods. For now it just
+ * wraps the repository, but already uses constructor injection and the new
+ * exception hierarchy so the rest of the codebase can reference it safely.
+ */
 @Service
 public class FerramentaService {
 
-    @Autowired
-    private FerramentaRepository ferramentaRepository;
+    private final FerramentaRepository ferramentaRepository;
 
-    // Cadastrar
-    public Ferramenta cadastrar(Ferramenta ferramenta){
+    public FerramentaService(FerramentaRepository ferramentaRepository) {
+        this.ferramentaRepository = ferramentaRepository;
+    }
+
+    @Transactional
+    public Ferramenta cadastrar(Ferramenta ferramenta) {
         return ferramentaRepository.save(ferramenta);
     }
 
-    // Listar todas
-    public List<Ferramenta> listar(){
+    public List<Ferramenta> listar() {
         return ferramentaRepository.findAll();
     }
 
-    // Buscar por ID
-    public Ferramenta buscarPorId(Long id){
-        return ferramentaRepository.findById(id).orElse(null);
+    public Ferramenta buscarPorId(Long id) {
+        return ferramentaRepository.findById(id)
+            .orElseThrow(() -> NotFoundException.of("Ferramenta", id));
     }
 
-    // Atualizar
+    @Transactional
     public Ferramenta atualizar(Long id, Ferramenta ferramenta) {
         Ferramenta existente = ferramentaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ferramenta não encontrada"));
-
+            .orElseThrow(() -> NotFoundException.of("Ferramenta", id));
         existente.setNome(ferramenta.getNome());
-
         return ferramentaRepository.save(existente);
     }
 
-    // Deletar
-    public void deletar(Long id){
+    @Transactional
+    public void deletar(Long id) {
+        if (!ferramentaRepository.existsById(id)) {
+            throw NotFoundException.of("Ferramenta", id);
+        }
         ferramentaRepository.deleteById(id);
     }
 }

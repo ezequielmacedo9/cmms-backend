@@ -2,6 +2,7 @@ package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.dto.MaquinaRequestDTO;
 import br.com.cmms.cmms.dto.MaquinaResponseDTO;
+import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import org.slf4j.Logger;
@@ -45,7 +46,7 @@ public class MaquinaService {
 
     public MaquinaResponseDTO buscarPorId(Long id) {
         return toDTO(maquinaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id)));
+            .orElseThrow(() -> NotFoundException.of("Máquina", id)));
     }
 
     @Transactional
@@ -55,7 +56,7 @@ public class MaquinaService {
     })
     public MaquinaResponseDTO atualizar(Long id, MaquinaRequestDTO dto) {
         Maquina m = maquinaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + id));
+            .orElseThrow(() -> NotFoundException.of("Máquina", id));
         applyDto(dto, m);
         log.info("Atualizando máquina id={}", id);
         return toDTO(maquinaRepository.save(m));
@@ -68,7 +69,7 @@ public class MaquinaService {
     })
     public void deletar(Long id) {
         if (!maquinaRepository.existsById(id)) {
-            throw new RuntimeException("Máquina não encontrada: " + id);
+            throw NotFoundException.of("Máquina", id);
         }
         log.info("Deletando máquina id={}", id);
         maquinaRepository.deleteById(id);

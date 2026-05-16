@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.service;
 
+import br.com.cmms.cmms.exception.UnauthorizedException;
 import br.com.cmms.cmms.model.RefreshToken;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.RefreshTokenRepository;
@@ -37,14 +38,14 @@ public class RefreshTokenService {
 
     public RefreshToken validar(String token) {
         if (token == null || token.isBlank()) {
-            throw new RuntimeException("Refresh token inválido");
+            throw new UnauthorizedException("REFRESH_TOKEN_MISSING", "Refresh token ausente.");
         }
         RefreshToken refreshToken = repository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Refresh token inválido"));
+            .orElseThrow(() -> new UnauthorizedException("REFRESH_TOKEN_INVALID", "Refresh token inválido."));
 
         if (refreshToken.getExpiracao().isBefore(Instant.now())) {
             repository.delete(refreshToken);
-            throw new RuntimeException("Refresh token expirado");
+            throw new UnauthorizedException("REFRESH_TOKEN_EXPIRED", "Refresh token expirado.");
         }
 
         return refreshToken;

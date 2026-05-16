@@ -2,6 +2,7 @@ package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
+import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Manutencao;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
@@ -38,7 +39,7 @@ public class ManutencaoService {
     })
     public ManutencaoResponseDTO cadastrar(ManutencaoRequestDTO dto, Long maquinaId) {
         Maquina maquina = maquinaRepository.findById(maquinaId)
-            .orElseThrow(() -> new RuntimeException("Máquina não encontrada: " + maquinaId));
+            .orElseThrow(() -> NotFoundException.of("Máquina", maquinaId));
 
         Manutencao m = new Manutencao();
         m.setTipo(dto.tipo());
@@ -65,7 +66,7 @@ public class ManutencaoService {
 
     public ManutencaoResponseDTO buscarPorId(Long id) {
         return toDTO(manutencaoRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Manutenção não encontrada: " + id)));
+            .orElseThrow(() -> NotFoundException.of("Manutenção", id)));
     }
 
     @Transactional
@@ -75,7 +76,7 @@ public class ManutencaoService {
     })
     public void deletar(Long id) {
         if (!manutencaoRepository.existsById(id)) {
-            throw new RuntimeException("Manutenção não encontrada: " + id);
+            throw NotFoundException.of("Manutenção", id);
         }
         log.info("Deletando manutenção id={}", id);
         manutencaoRepository.deleteById(id);

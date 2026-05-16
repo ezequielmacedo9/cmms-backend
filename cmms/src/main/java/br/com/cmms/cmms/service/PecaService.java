@@ -2,6 +2,7 @@ package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.dto.PecaRequestDTO;
 import br.com.cmms.cmms.dto.PecaResponseDTO;
+import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Peca;
 import br.com.cmms.cmms.repository.PecaRepository;
 import org.slf4j.Logger;
@@ -36,13 +37,13 @@ public class PecaService {
 
     public PecaResponseDTO buscarPorId(Long id) {
         return toResponseDTO(pecaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Peça não encontrada: " + id)));
+            .orElseThrow(() -> NotFoundException.of("Peça", id)));
     }
 
     @Transactional
     public PecaResponseDTO atualizar(Long id, PecaRequestDTO dto) {
         Peca peca = pecaRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Peça não encontrada: " + id));
+            .orElseThrow(() -> NotFoundException.of("Peça", id));
         copiarDtoParaEntity(dto, peca);
         log.info("Atualizando peça id={}", id);
         return toResponseDTO(pecaRepository.save(peca));
@@ -51,7 +52,7 @@ public class PecaService {
     @Transactional
     public void deletar(Long id) {
         if (!pecaRepository.existsById(id)) {
-            throw new RuntimeException("Peça não encontrada: " + id);
+            throw NotFoundException.of("Peça", id);
         }
         log.info("Deletando peça id={}", id);
         pecaRepository.deleteById(id);
