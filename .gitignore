@@ -1,0 +1,14 @@
+# Local environment files — must never be committed.
+.env
+.env.local
+*.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Build output (delegated to cmms/.gitignore)
+target/
