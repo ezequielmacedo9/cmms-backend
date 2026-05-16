@@ -93,18 +93,19 @@ public class ProfileController {
     }
 
     private Map<String, Object> profileMap(Usuario u) {
-        return Map.of(
-            "id",             u.getId(),
-            "email",          u.getEmail(),
-            "nome",           nvl(u.getNome()),
-            "telefone",       nvl(u.getTelefone()),
-            "cargo",          nvl(u.getCargo()),
-            "departamento",   nvl(u.getDepartamento()),
-            "avatarBase64",   nvl(u.getAvatarBase64()),
-            "totpEnabled",    u.isTotpEnabled(),
-            "role",           u.getRole().getNome(),
-            "dataCriacao",    u.getDataCriacao() != null ? u.getDataCriacao().toString() : "",
-            "ultimoLogin",    u.getUltimoLogin() != null ? u.getUltimoLogin().toString() : ""
+        // Map.of() supports up to 10 key/value pairs; use Map.ofEntries for 11+.
+        return Map.ofEntries(
+            Map.entry("id",            u.getId()),
+            Map.entry("email",         u.getEmail()),
+            Map.entry("nome",          nvl(u.getNome())),
+            Map.entry("telefone",      nvl(u.getTelefone())),
+            Map.entry("cargo",         nvl(u.getCargo())),
+            Map.entry("departamento",  nvl(u.getDepartamento())),
+            Map.entry("avatarBase64",  nvl(u.getAvatarBase64())),
+            Map.entry("totpEnabled",   u.isTotpEnabled()),
+            Map.entry("role",          u.getRole().getNome()),
+            Map.entry("dataCriacao",   u.getDataCriacao() != null ? u.getDataCriacao().toString() : ""),
+            Map.entry("ultimoLogin",   u.getUltimoLogin() != null ? u.getUltimoLogin().toString() : "")
         );
     }
 

@@ -93,11 +93,18 @@ public class Maquina {
         this.status = status;
     }
 
-    public int getIntervaloPreventivaDias() {
+    /**
+     * Returns the preventive maintenance interval in days.
+     * <p>
+     * Returns {@code Integer} (nullable) to match the underlying nullable column.
+     * Callers must handle {@code null} to avoid {@link NullPointerException}
+     * on machines that have no defined interval yet.
+     */
+    public Integer getIntervaloPreventivaDias() {
         return intervaloPreventivaDias;
     }
 
-    public void setIntervaloPreventivaDias(int intervaloPreventivaDias) {
+    public void setIntervaloPreventivaDias(Integer intervaloPreventivaDias) {
         this.intervaloPreventivaDias = intervaloPreventivaDias;
     }
 

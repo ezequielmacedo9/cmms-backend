@@ -93,6 +93,15 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Database migrations (prod profile only — see application-prod.properties) -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.bucket4j</groupId>

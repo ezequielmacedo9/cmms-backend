@@ -85,7 +85,8 @@ public class RelatorioService {
                 r.createCell(3).setCellValue(nvl(m.getStatus()));
                 r.createCell(4).setCellValue(nvl(m.getPrioridade()));
                 r.createCell(5).setCellValue(m.getDataUltimaManutencao() != null ? m.getDataUltimaManutencao().toString() : "");
-                r.createCell(6).setCellValue(m.getIntervaloPreventivaDias());
+                Integer intervalo = m.getIntervaloPreventivaDias();
+                r.createCell(6).setCellValue(intervalo != null ? intervalo : 0);
             }
             sheet.setAutoFilter(new CellRangeAddress(0, 0, 0, cols.length - 1));
             return toBytes(wb);
