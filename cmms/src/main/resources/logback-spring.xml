@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ~ Logback configuration. Two profiles:
+ ~  - default (dev/test): colored human-readable layout with traceId.
+ ~  - prod              : compact key=value structured layout, single-line,
+ ~                        with all the fields a log aggregator needs to
+ ~                        index. (We avoid pulling logstash-encoder to keep
+ ~                        the dependency tree small; the format is still
+ ~                        machine-friendly.)
+ -->
+<configuration>
+
+    <conversionRule conversionWord="clr"
+                    converterClass="org.springframework.boot.logging.logback.ColorConverter"/>
+
+    <!--
+     ~ Dev / default — colored layout, easy to scan locally.
+     ~ Pattern: timestamp LEVEL [traceId] logger - message
+     -->
+    <springProfile name="default,dev,test">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%X{traceId:-}]){faint} %clr(%logger{36}){cyan} - %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="br.com.cmms" level="DEBUG"/>
+    </springProfile>
+
+    <!--
+     ~ Prod — single line, key=value. Cheap to parse, no extra dependency.
+     ~ Example:
+     ~   ts=2026-05-17T16:00:00.001Z level=INFO trace=a1b2c3 logger=br.com.cmms.X msg="logged in" thread=http-nio-8080-exec-1
+     -->
+    <springProfile name="prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>ts=%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%-5level trace=%X{traceId:-} logger=%logger{40} thread=%thread msg="%replace(%msg){'\"','\\\"'}" %ex%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="br.com.cmms"               level="INFO"/>
+        <logger name="org.hibernate.SQL"         level="WARN"/>
+        <logger name="org.springframework.web"   level="INFO"/>
+        <logger name="org.springframework.security" level="INFO"/>
+    </springProfile>
+
+</configuration>
