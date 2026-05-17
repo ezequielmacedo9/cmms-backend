@@ -1,6 +1,7 @@
 package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.service.RelatorioService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 
 @RestController
 @RequestMapping("/api/relatorios")
+@Tag(name = "Relatórios")
 public class RelatorioController {
 
     private final RelatorioService service;

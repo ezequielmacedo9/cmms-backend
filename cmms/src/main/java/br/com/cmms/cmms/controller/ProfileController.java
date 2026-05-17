@@ -6,6 +6,7 @@ import br.com.cmms.cmms.exception.ValidationException;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import br.com.cmms.cmms.service.AuditService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -21,6 +22,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profile")
+@Tag(name = "Perfil")
 public class ProfileController {
 
     private final UsuarioRepository usuarioRepo;

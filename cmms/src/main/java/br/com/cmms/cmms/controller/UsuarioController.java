@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.ConvidarUsuarioRequestDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.dto.UsuarioResponseDTO;
 import br.com.cmms.cmms.service.UsuarioService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -18,6 +19,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/usuarios")
+@Tag(name = "Usuários")
 public class UsuarioController {
 
     private final UsuarioService usuarioService;

@@ -4,6 +4,7 @@ import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.service.ManutencaoService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/manutencoes")
+@Tag(name = "Manutenções")
 public class ManutencaoController {
 
     private final ManutencaoService manutencaoService;

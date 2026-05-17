@@ -4,6 +4,8 @@ import br.com.cmms.cmms.dto.MaquinaRequestDTO;
 import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.service.MaquinaService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -23,6 +25,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/maquinas")
+@Tag(name = "Máquinas")
 public class MaquinaController {
 
     private final MaquinaService maquinaService;
@@ -33,6 +36,7 @@ public class MaquinaController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Cadastrar nova máquina")
     public ResponseEntity<MaquinaResponseDTO> cadastrar(@RequestBody @Valid MaquinaRequestDTO dto) {
         return ResponseEntity.ok(maquinaService.cadastrar(dto));
     }
@@ -43,6 +47,8 @@ public class MaquinaController {
      * (kept for older integrations and report exports).
      */
     @GetMapping
+    @Operation(summary = "Listar máquinas",
+        description = "Retorna um Page<MaquinaResponseDTO> ou uma List<MaquinaResponseDTO> quando unpaged=true.")
     public ResponseEntity<?> listar(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String status,

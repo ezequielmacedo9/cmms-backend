@@ -4,6 +4,7 @@ import br.com.cmms.cmms.dto.AuditLogResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.model.AuditLog;
 import br.com.cmms.cmms.repository.AuditLogRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/audit")
 @PreAuthorize("hasAnyAuthority('ROLE_SUPER_ADMIN','ROLE_ADMIN')")
+@Tag(name = "Auditoria")
 public class AuditLogController {
 
     private static final int MAX_PAGE_SIZE = 100;

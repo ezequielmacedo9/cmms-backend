@@ -3,6 +3,7 @@ package br.com.cmms.cmms.controller;
 import br.com.cmms.cmms.dto.ConfiguracaoSistemaDTO;
 import br.com.cmms.cmms.service.AuditService;
 import br.com.cmms.cmms.service.ConfiguracaoService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,6 +20,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/configuracoes")
+@Tag(name = "Configurações")
 public class ConfiguracaoController {
 
     private final ConfiguracaoService service;

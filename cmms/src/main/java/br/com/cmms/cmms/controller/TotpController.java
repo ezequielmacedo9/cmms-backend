@@ -10,6 +10,7 @@ import br.com.cmms.cmms.service.TotpService;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.qrcode.QRCodeWriter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -30,6 +31,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/profile/2fa")
+@Tag(name = "Perfil")
 public class TotpController {
 
     private static final String PENDING_PREFIX = "PENDING:";

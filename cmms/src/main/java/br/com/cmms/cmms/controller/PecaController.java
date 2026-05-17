@@ -4,6 +4,7 @@ import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.dto.PecaRequestDTO;
 import br.com.cmms.cmms.dto.PecaResponseDTO;
 import br.com.cmms.cmms.service.PecaService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pecas")
+@Tag(name = "Peças")
 public class PecaController {
 
     private final PecaService pecaService;
