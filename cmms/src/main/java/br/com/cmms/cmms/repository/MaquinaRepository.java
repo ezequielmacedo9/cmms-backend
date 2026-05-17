@@ -30,4 +30,25 @@ public interface MaquinaRepository extends JpaRepository<Maquina, Long> {
     Page<Maquina> search(@Param("q") String q,
                          @Param("status") String status,
                          Pageable pageable);
+
+    /**
+     * Aggregate count by status, returned as {@code [status, count]} rows
+     * so the dashboard service can map directly without loading all machines.
+     */
+    @Query("SELECT m.status AS status, COUNT(m) AS total FROM Maquina m GROUP BY m.status")
+    List<Object[]> countGroupByStatus();
+
+    /**
+     * Returns lightweight projections for the overdue-preventive alerts:
+     * id, nome, setor, prioridade, dataUltimaManutencao, intervaloPreventivaDias.
+     * Excludes anything we don't need so Hibernate can avoid loading the entity.
+     */
+    @Query("""
+        SELECT m.id, m.nome, m.setor, m.prioridade,
+               m.dataUltimaManutencao, m.intervaloPreventivaDias
+        FROM Maquina m
+        WHERE m.intervaloPreventivaDias IS NOT NULL
+          AND m.intervaloPreventivaDias > 0
+    """)
+    List<Object[]> findPreventiveCandidates();
 }

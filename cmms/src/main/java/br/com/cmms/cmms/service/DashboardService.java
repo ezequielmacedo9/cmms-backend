@@ -1,8 +1,6 @@
 package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.dto.DashboardStatsDTO;
-import br.com.cmms.cmms.model.Manutencao;
-import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import br.com.cmms.cmms.repository.PecaRepository;
@@ -10,17 +8,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 
+/**
+ * Builds the {@link DashboardStatsDTO} consumed by the home dashboard.
+ *
+ * <p>Pre-optimisation history: this service used to call {@code findAll()}
+ * on machines + maintenances and iterate everything in memory — which broke
+ * spectacularly as soon as the database held real data. The current
+ * implementation pushes the work to the database with GROUP BY aggregations
+ * and only loads scalar rows.
+ */
 @Service
 public class DashboardService {
 
     private static final Logger log = LoggerFactory.getLogger(DashboardService.class);
     private static final String[] MESES_PT = {"Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"};
+    private static final int MONTH_WINDOW = 6;
+    private static final int MAX_ALERTS = 10;
 
     private final MaquinaRepository maquinaRepository;
     private final ManutencaoRepository manutencaoRepository;
@@ -35,96 +49,146 @@ public class DashboardService {
     }
 
     @Cacheable("dashboard-stats")
+    @Transactional(readOnly = true)
     public DashboardStatsDTO getStats() {
-        log.info("Computando estatísticas do dashboard");
-
-        List<Maquina> maquinas = maquinaRepository.findAll();
-        List<Manutencao> manutencoes = manutencaoRepository.findAll();
-        long totalPecas = pecaRepository.count();
-
-        long totalMaquinas = maquinas.size();
-        long maquinasAtivas = maquinas.stream().filter(m -> "ATIVO".equals(m.getStatus())).count();
-        long maquinasInativas = maquinas.stream().filter(m -> "INATIVO".equals(m.getStatus())).count();
-        long maquinasEmManutencao = maquinas.stream().filter(m -> "EM_MANUTENCAO".equals(m.getStatus())).count();
-
-        long manutencoesPreventivas = manutencoes.stream().filter(m -> "PREVENTIVA".equals(m.getTipo())).count();
-        long manutencoesCorretivas = manutencoes.stream().filter(m -> "CORRETIVA".equals(m.getTipo())).count();
+        log.debug("Computing dashboard stats");
 
         LocalDate hoje = LocalDate.now();
-        long manutencoesVencidas = maquinas.stream()
-            .filter(m -> m.getIntervaloPreventivaDias() != null && m.getIntervaloPreventivaDias() > 0)
-            .filter(m -> {
-                if (m.getDataUltimaManutencao() == null) return true;
-                return m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()).isBefore(hoje);
-            })
+        LocalDate sixMonthsAgo = hoje.minusMonths(MONTH_WINDOW - 1L).withDayOfMonth(1);
+
+        // ── Machine status counts (single GROUP BY query) ──
+        Map<String, Long> statusCounts = toCountMap(maquinaRepository.countGroupByStatus());
+        long maquinasAtivas        = statusCounts.getOrDefault("ATIVO", 0L);
+        long maquinasInativas      = statusCounts.getOrDefault("INATIVO", 0L);
+        long maquinasEmManutencao  = statusCounts.getOrDefault("EM_MANUTENCAO", 0L);
+        long totalMaquinas         = statusCounts.values().stream().mapToLong(Long::longValue).sum();
+
+        // ── Maintenance type counts (single GROUP BY query) ──
+        Map<String, Long> tipoCounts = toCountMap(manutencaoRepository.countGroupByTipo());
+        long manutencoesPreventivas = tipoCounts.getOrDefault("PREVENTIVA", 0L);
+        long manutencoesCorretivas  = tipoCounts.getOrDefault("CORRETIVA",  0L);
+        long totalManutencoes       = tipoCounts.values().stream().mapToLong(Long::longValue).sum();
+
+        long totalPecas = pecaRepository.count();
+
+        // ── Overdue preventives (database returns only candidates with interval > 0) ──
+        List<PreventiveRow> preventiveCandidates = maquinaRepository.findPreventiveCandidates().stream()
+            .map(PreventiveRow::from)
+            .toList();
+        long manutencoesVencidas = preventiveCandidates.stream()
+            .filter(p -> p.isOverdue(hoje))
             .count();
 
-        double disponibilidade = totalMaquinas > 0 ? Math.round(maquinasAtivas * 1000.0 / totalMaquinas) / 10.0 : 0;
-        double mtbfDias = Math.round(computeMtbf(manutencoes) * 10) / 10.0;
+        // ── Headline KPIs ──
+        double disponibilidade = totalMaquinas > 0
+            ? Math.round(maquinasAtivas * 1000.0 / totalMaquinas) / 10.0
+            : 0;
+        double mtbfDias = Math.round(computeMtbf() * 10) / 10.0;
 
         return new DashboardStatsDTO(
-            totalMaquinas, manutencoes.size(), totalPecas,
+            totalMaquinas, totalManutencoes, totalPecas,
             maquinasAtivas, maquinasInativas, maquinasEmManutencao,
             manutencoesPreventivas, manutencoesCorretivas, manutencoesVencidas,
             disponibilidade, mtbfDias,
-            computeMonthlyCounts(manutencoes, hoje),
-            computeAlerts(maquinas, hoje)
+            computeMonthlyCounts(hoje, sixMonthsAgo),
+            computeAlerts(preventiveCandidates, hoje)
         );
     }
 
-    private double computeMtbf(List<Manutencao> manutencoes) {
-        Map<Long, List<LocalDate>> corretivas = manutencoes.stream()
-            .filter(m -> "CORRETIVA".equals(m.getTipo()) && m.getDataManutencao() != null && m.getMaquina() != null)
-            .collect(Collectors.groupingBy(
-                m -> m.getMaquina().getId(),
-                Collectors.mapping(Manutencao::getDataManutencao, Collectors.toList())
-            ));
+    // ── helpers ──────────────────────────────────────────────────────────
 
-        List<Long> intervals = new ArrayList<>();
-        corretivas.values().forEach(dates -> {
-            dates.sort(Comparator.naturalOrder());
-            for (int i = 1; i < dates.size(); i++) {
-                intervals.add(ChronoUnit.DAYS.between(dates.get(i - 1), dates.get(i)));
-            }
-        });
-
-        return intervals.isEmpty() ? 0.0 : intervals.stream().mapToLong(Long::longValue).average().orElse(0.0);
+    private static Map<String, Long> toCountMap(List<Object[]> rows) {
+        Map<String, Long> out = new HashMap<>();
+        for (Object[] row : rows) {
+            String key = row[0] != null ? row[0].toString() : "";
+            long value = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            out.merge(key, value, Long::sum);
+        }
+        return out;
     }
 
-    private List<DashboardStatsDTO.MonthlyCount> computeMonthlyCounts(List<Manutencao> manutencoes, LocalDate hoje) {
-        List<DashboardStatsDTO.MonthlyCount> result = new ArrayList<>();
-        for (int i = 5; i >= 0; i--) {
+    private double computeMtbf() {
+        List<Object[]> rows = manutencaoRepository.findCorrectiveDatesPerMachine();
+        if (rows.isEmpty()) return 0.0;
+
+        // The query already orders rows by (machine_id, date), so we can scan
+        // linearly and compute gaps without grouping into a Map.
+        List<Long> intervals = new ArrayList<>();
+        Long previousMachineId = null;
+        LocalDate previousDate = null;
+        for (Object[] row : rows) {
+            Long machineId = ((Number) row[0]).longValue();
+            LocalDate date = (LocalDate) row[1];
+            if (machineId.equals(previousMachineId) && previousDate != null) {
+                intervals.add(ChronoUnit.DAYS.between(previousDate, date));
+            }
+            previousMachineId = machineId;
+            previousDate = date;
+        }
+        return intervals.isEmpty() ? 0.0
+            : intervals.stream().mapToLong(Long::longValue).average().orElse(0.0);
+    }
+
+    private List<DashboardStatsDTO.MonthlyCount> computeMonthlyCounts(LocalDate hoje, LocalDate start) {
+        // Map from (year * 100 + month) → count, populated from a single GROUP BY query.
+        TreeMap<Integer, Long> aggregated = new TreeMap<>();
+        for (Object[] row : manutencaoRepository.monthlyCountsSince(start)) {
+            int year  = ((Number) row[0]).intValue();
+            int month = ((Number) row[1]).intValue();
+            long count = ((Number) row[2]).longValue();
+            aggregated.put(year * 100 + month, count);
+        }
+
+        List<DashboardStatsDTO.MonthlyCount> result = new ArrayList<>(MONTH_WINDOW);
+        for (int i = MONTH_WINDOW - 1; i >= 0; i--) {
             LocalDate ref = hoje.minusMonths(i).withDayOfMonth(1);
-            int ano = ref.getYear();
-            int mes = ref.getMonthValue();
-            long count = manutencoes.stream()
-                .filter(m -> m.getDataManutencao() != null
-                    && m.getDataManutencao().getYear() == ano
-                    && m.getDataManutencao().getMonthValue() == mes)
-                .count();
-            String label = MESES_PT[mes - 1] + "/" + String.valueOf(ano).substring(2);
-            result.add(new DashboardStatsDTO.MonthlyCount(ano, mes, label, count));
+            int year  = ref.getYear();
+            int month = ref.getMonthValue();
+            long count = aggregated.getOrDefault(year * 100 + month, 0L);
+            String label = MESES_PT[month - 1] + "/" + String.valueOf(year).substring(2);
+            result.add(new DashboardStatsDTO.MonthlyCount(year, month, label, count));
         }
         return result;
     }
 
-    private List<DashboardStatsDTO.OverdueAlert> computeAlerts(List<Maquina> maquinas, LocalDate hoje) {
-        return maquinas.stream()
-            .filter(m -> m.getIntervaloPreventivaDias() != null && m.getIntervaloPreventivaDias() > 0)
-            .filter(m -> {
-                if (m.getDataUltimaManutencao() == null) return true;
-                return m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()).isBefore(hoje);
-            })
-            .map(m -> {
-                long diasVencido = m.getDataUltimaManutencao() == null ? 999L
-                    : ChronoUnit.DAYS.between(m.getDataUltimaManutencao().plusDays(m.getIntervaloPreventivaDias()), hoje);
-                return new DashboardStatsDTO.OverdueAlert(
-                    m.getId(), m.getNome(), m.getSetor(), diasVencido,
-                    m.getPrioridade() != null ? m.getPrioridade() : "MEDIA"
-                );
-            })
+    private List<DashboardStatsDTO.OverdueAlert> computeAlerts(List<PreventiveRow> rows, LocalDate hoje) {
+        return rows.stream()
+            .filter(p -> p.isOverdue(hoje))
+            .map(p -> new DashboardStatsDTO.OverdueAlert(
+                p.id, p.nome, p.setor, p.daysOverdue(hoje),
+                p.prioridade != null ? p.prioridade : "MEDIA"))
             .sorted(Comparator.comparingLong(DashboardStatsDTO.OverdueAlert::diasVencido).reversed())
-            .limit(10)
+            .limit(MAX_ALERTS)
             .toList();
+    }
+
+    /**
+     * Compact projection of the columns we read from the preventive query.
+     * Keeps the rest of the code working with named fields instead of
+     * {@code Object[]} indices.
+     */
+    private record PreventiveRow(
+        Long id, String nome, String setor, String prioridade,
+        LocalDate dataUltimaManutencao, Integer intervaloPreventivaDias
+    ) {
+        static PreventiveRow from(Object[] row) {
+            return new PreventiveRow(
+                ((Number) row[0]).longValue(),
+                (String) row[1],
+                (String) row[2],
+                (String) row[3],
+                (LocalDate) row[4],
+                row[5] != null ? ((Number) row[5]).intValue() : null
+            );
+        }
+        boolean isOverdue(LocalDate today) {
+            if (intervaloPreventivaDias == null || intervaloPreventivaDias <= 0) return false;
+            if (dataUltimaManutencao == null) return true;
+            return dataUltimaManutencao.plusDays(intervaloPreventivaDias).isBefore(today);
+        }
+        long daysOverdue(LocalDate today) {
+            if (dataUltimaManutencao == null) return 999L;
+            return ChronoUnit.DAYS.between(dataUltimaManutencao.plusDays(intervaloPreventivaDias), today);
+        }
     }
 }

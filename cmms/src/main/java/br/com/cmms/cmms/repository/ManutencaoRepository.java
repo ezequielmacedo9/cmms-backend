@@ -38,4 +38,40 @@ public interface ManutencaoRepository extends JpaRepository<Manutencao, Long> {
 
     @Query("SELECT m FROM Manutencao m JOIN FETCH m.maquina WHERE m.tipo = :tipo ORDER BY m.maquina.id ASC, m.dataManutencao ASC")
     List<Manutencao> findByTipoOrderByMaquinaAndDate(@Param("tipo") String tipo);
+
+    /** Aggregate count by maintenance type. */
+    @Query("SELECT m.tipo AS tipo, COUNT(m) AS total FROM Manutencao m GROUP BY m.tipo")
+    List<Object[]> countGroupByTipo();
+
+    /**
+     * Lightweight rows for MTBF computation: only the columns we need
+     * (machine id + maintenance date) for corrective maintenances. Avoids
+     * loading entire Manutencao + Maquina graphs.
+     */
+    @Query("""
+        SELECT m.maquina.id, m.dataManutencao
+        FROM Manutencao m
+        WHERE m.tipo = 'CORRETIVA'
+          AND m.dataManutencao IS NOT NULL
+          AND m.maquina IS NOT NULL
+        ORDER BY m.maquina.id, m.dataManutencao
+    """)
+    List<Object[]> findCorrectiveDatesPerMachine();
+
+    /**
+     * Monthly histogram of maintenance counts since the given start date.
+     * Returns rows of {@code [year, month, count]}. PostgreSQL and H2 both
+     * support {@code EXTRACT(YEAR/MONTH FROM ...)} for JPA's temporal types.
+     */
+    @Query("""
+        SELECT EXTRACT(YEAR  FROM m.dataManutencao) AS year,
+               EXTRACT(MONTH FROM m.dataManutencao) AS month,
+               COUNT(m) AS total
+        FROM Manutencao m
+        WHERE m.dataManutencao IS NOT NULL
+          AND m.dataManutencao >= :start
+        GROUP BY EXTRACT(YEAR FROM m.dataManutencao),
+                 EXTRACT(MONTH FROM m.dataManutencao)
+    """)
+    List<Object[]> monthlyCountsSince(@Param("start") LocalDate start);
 }
