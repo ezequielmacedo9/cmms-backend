@@ -11,6 +11,8 @@ import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +43,11 @@ public class UsuarioService {
             .stream()
             .map(UsuarioResponseDTO::from)
             .toList();
+    }
+
+    public Page<UsuarioResponseDTO> listar(Pageable pageable) {
+        return usuarioRepository.findAllByOrderByDataCriacaoDesc(pageable)
+            .map(UsuarioResponseDTO::from);
     }
 
     public UsuarioResponseDTO getMeuPerfil(String email) {

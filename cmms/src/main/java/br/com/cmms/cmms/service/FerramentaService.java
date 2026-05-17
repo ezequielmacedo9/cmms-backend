@@ -5,15 +5,13 @@ import br.com.cmms.cmms.dto.FerramentaResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Ferramenta;
 import br.com.cmms.cmms.repository.FerramentaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * Service over the {@link Ferramenta} aggregate. Exposes DTOs only;
- * entities never cross the service boundary.
- */
 @Service
 public class FerramentaService {
 
@@ -36,6 +34,11 @@ public class FerramentaService {
             .toList();
     }
 
+    public Page<FerramentaResponseDTO> listar(String q, Pageable pageable) {
+        String normalizedQ = (q == null || q.isBlank()) ? null : q.trim();
+        return ferramentaRepository.search(normalizedQ, pageable).map(FerramentaResponseDTO::from);
+    }
+
     public FerramentaResponseDTO buscarPorId(Long id) {
         return FerramentaResponseDTO.from(findOrThrow(id));
     }
@@ -54,8 +57,6 @@ public class FerramentaService {
         }
         ferramentaRepository.deleteById(id);
     }
-
-    // ── helpers ──────────────────────────────────────────────────────────
 
     private Ferramenta findOrThrow(Long id) {
         return ferramentaRepository.findById(id)

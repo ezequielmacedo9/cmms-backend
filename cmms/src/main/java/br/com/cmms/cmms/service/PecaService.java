@@ -7,6 +7,8 @@ import br.com.cmms.cmms.model.Peca;
 import br.com.cmms.cmms.repository.PecaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,11 @@ public class PecaService {
 
     public List<PecaResponseDTO> listar() {
         return pecaRepository.findAll().stream().map(this::toResponseDTO).toList();
+    }
+
+    public Page<PecaResponseDTO> listar(String q, Pageable pageable) {
+        String normalizedQ = (q == null || q.isBlank()) ? null : q.trim();
+        return pecaRepository.search(normalizedQ, pageable).map(this::toResponseDTO);
     }
 
     public PecaResponseDTO buscarPorId(Long id) {

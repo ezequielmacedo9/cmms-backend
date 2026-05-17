@@ -2,9 +2,12 @@ package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.dto.AlterarRoleRequestDTO;
 import br.com.cmms.cmms.dto.ConvidarUsuarioRequestDTO;
+import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.dto.UsuarioResponseDTO;
 import br.com.cmms.cmms.service.UsuarioService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,8 +33,14 @@ public class UsuarioController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
-    public ResponseEntity<List<UsuarioResponseDTO>> listar() {
-        return ResponseEntity.ok(usuarioService.listar());
+    public ResponseEntity<?> listar(
+            @RequestParam(name = "unpaged", defaultValue = "false") boolean unpaged,
+            @PageableDefault(size = 20) Pageable pageable) {
+        if (unpaged) {
+            List<UsuarioResponseDTO> all = usuarioService.listar();
+            return ResponseEntity.ok(all);
+        }
+        return ResponseEntity.ok(PagedResponseDTO.of(usuarioService.listar(pageable)));
     }
 
     @PostMapping("/convidar")

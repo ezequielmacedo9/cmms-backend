@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,7 +31,8 @@ public class MaquinaService {
 
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "maquinas", allEntries = true),
+        @CacheEvict(value = "maquinas",        allEntries = true),
+        @CacheEvict(value = "maquinas-page",   allEntries = true),
         @CacheEvict(value = "dashboard-stats", allEntries = true)
     })
     public MaquinaResponseDTO cadastrar(MaquinaRequestDTO dto) {
@@ -39,6 +42,19 @@ public class MaquinaService {
         return toDTO(maquinaRepository.save(m));
     }
 
+    /**
+     * Paged listing with optional search and status filter. Cached on the
+     * exact tuple (query, status, page, size, sort).
+     */
+    @Cacheable(value = "maquinas-page",
+        key = "(#q ?: '') + '|' + (#status ?: '') + '|' + #pageable.pageNumber + '|' + #pageable.pageSize + '|' + #pageable.sort")
+    public Page<MaquinaResponseDTO> listar(String q, String status, Pageable pageable) {
+        String normalizedQ      = (q == null      || q.isBlank())      ? null : q.trim();
+        String normalizedStatus = (status == null || status.isBlank()) ? null : status.trim();
+        return maquinaRepository.search(normalizedQ, normalizedStatus, pageable).map(this::toDTO);
+    }
+
+    /** Legacy non-paged listing — used by integrations that still expect a full list. */
     @Cacheable("maquinas")
     public List<MaquinaResponseDTO> listar() {
         return maquinaRepository.findAll().stream().map(this::toDTO).toList();
@@ -51,7 +67,8 @@ public class MaquinaService {
 
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "maquinas", allEntries = true),
+        @CacheEvict(value = "maquinas",        allEntries = true),
+        @CacheEvict(value = "maquinas-page",   allEntries = true),
         @CacheEvict(value = "dashboard-stats", allEntries = true)
     })
     public MaquinaResponseDTO atualizar(Long id, MaquinaRequestDTO dto) {
@@ -64,7 +81,8 @@ public class MaquinaService {
 
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "maquinas", allEntries = true),
+        @CacheEvict(value = "maquinas",        allEntries = true),
+        @CacheEvict(value = "maquinas-page",   allEntries = true),
         @CacheEvict(value = "dashboard-stats", allEntries = true)
     })
     public void deletar(Long id) {
@@ -79,7 +97,8 @@ public class MaquinaService {
         m.setNome(dto.nome());
         m.setSetor(dto.setor());
         m.setStatus(dto.status());
-        m.setPrioridade(dto.prioridade() != null ? dto.prioridade() : (m.getPrioridade() != null ? m.getPrioridade() : "MEDIA"));
+        m.setPrioridade(dto.prioridade() != null ? dto.prioridade()
+                                                 : (m.getPrioridade() != null ? m.getPrioridade() : "MEDIA"));
         m.setIntervaloPreventivaDias(dto.intervaloPreventivaDias() != null ? dto.intervaloPreventivaDias() : 0);
         m.setDataUltimaManutencao(dto.dataUltimaManutencao());
     }
