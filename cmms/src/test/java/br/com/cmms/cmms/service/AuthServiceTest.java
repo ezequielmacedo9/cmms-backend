@@ -185,22 +185,41 @@ class AuthServiceTest {
             .isInstanceOf(UnauthorizedException.class)
             .extracting("errorCode").isEqualTo("REFRESH_TOKEN_MISSING");
 
-        verify(refreshTokenService, never()).validar(anyString());
+        verify(refreshTokenService, never()).rotacionar(anyString());
     }
 
     @Test
-    @DisplayName("refresh: token válido devolve novo access mantendo o mesmo refresh")
-    void refresh_happyPath() {
-        RefreshToken stored = new RefreshToken();
-        stored.setToken("REFRESH");
-        stored.setUsuario(activeUser);
-        when(refreshTokenService.validar("REFRESH")).thenReturn(stored);
+    @DisplayName("logout: revoga refresh tokens e audita")
+    void logout_revokesAndAudits() {
+        authService.logout(activeUser, request);
+
+        verify(refreshTokenService).revogarTodos(activeUser);
+        verify(audit).log(eq(activeUser.getEmail()), any(), eq("LOGOUT"),
+                          eq("AUTH"), any(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("logout: usuário nulo é no-op (idempotência)")
+    void logout_nullUser_noop() {
+        authService.logout(null, request);
+        verify(refreshTokenService, never()).revogarTodos(any());
+    }
+
+    @Test
+    @DisplayName("refresh: rotaciona o refresh token e devolve novo access")
+    void refresh_happyPath_rotates() {
+        RefreshToken rotated = new RefreshToken();
+        rotated.setToken("REFRESH_NEW");
+        rotated.setUsuario(activeUser);
+        when(refreshTokenService.rotacionar("REFRESH_OLD")).thenReturn(rotated);
         when(jwtService.gerarToken(activeUser)).thenReturn("NEW_ACCESS");
 
-        TokenResponseDTO out = authService.refresh("REFRESH");
+        TokenResponseDTO out = authService.refresh("REFRESH_OLD");
 
+        // Novo access E novo refresh token (rotação)
         assertThat(out.getAccessToken()).isEqualTo("NEW_ACCESS");
-        assertThat(out.getRefreshToken()).isEqualTo("REFRESH");
+        assertThat(out.getRefreshToken()).isEqualTo("REFRESH_NEW");
+        verify(refreshTokenService, times(1)).rotacionar("REFRESH_OLD");
         verify(jwtService, times(1)).gerarToken(activeUser);
     }
 

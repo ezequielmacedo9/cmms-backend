@@ -112,18 +112,38 @@ public class AuthService {
     }
 
     /**
-     * Exchanges a valid refresh token for a new access token. Refresh token
-     * itself is preserved; rotation can be added later if needed.
+     * Exchanges a valid refresh token for a brand-new access + refresh pair.
+     *
+     * <p><strong>Rotation:</strong> the old refresh token is invalidated
+     * atomically inside {@link RefreshTokenService#rotacionar(String)}. A
+     * leaked refresh token only works once — the next refresh attempt with
+     * the same value returns {@code REFRESH_TOKEN_INVALID}.
      */
     @Transactional
     public TokenResponseDTO refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new UnauthorizedException("REFRESH_TOKEN_MISSING", "Refresh token ausente.");
         }
-        RefreshToken token = refreshTokenService.validar(refreshToken);
-        Usuario u = token.getUsuario();
+        RefreshToken rotated = refreshTokenService.rotacionar(refreshToken);
+        Usuario u = rotated.getUsuario();
         String novoAccessToken = jwtService.gerarToken(u);
-        return buildResponse(u, novoAccessToken, token.getToken());
+        return buildResponse(u, novoAccessToken, rotated.getToken());
+    }
+
+    /**
+     * Logs the user out by revoking all of their refresh tokens. The
+     * already-issued access token continues to work until it expires
+     * naturally (≤15min by default) — that's the trade-off of stateless
+     * JWTs; we mitigate it by keeping access TTL short.
+     *
+     * <p>Safe to call multiple times.
+     */
+    @Transactional
+    public void logout(Usuario u, HttpServletRequest request) {
+        if (u == null) return;
+        refreshTokenService.revogarTodos(u);
+        audit.log(u.getEmail(), u.getId(), "LOGOUT", "AUTH", null,
+            "Logout / refresh tokens revogados", AuditService.getClientIp(request));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────

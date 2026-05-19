@@ -61,6 +61,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
+        // /api/auth/* is public EXCEPT logout, which needs the principal
+        // resolved so RefreshTokenService knows whose tokens to revoke.
+        if (path.equals("/api/auth/logout")) return false;
         return path.equals("/ping")
             || path.equals("/error")
             || path.startsWith("/api/auth")

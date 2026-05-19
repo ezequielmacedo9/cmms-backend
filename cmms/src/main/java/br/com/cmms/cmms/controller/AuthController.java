@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.controller;
 
+import br.com.cmms.cmms.Security.UserDetailsImpl;
 import br.com.cmms.cmms.dto.LoginRequestDTO;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
 import br.com.cmms.cmms.service.AuthService;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "Auth")
-@SecurityRequirements // Marks the whole controller as public (no JWT needed).
 public class AuthController {
 
     private final AuthService authService;
@@ -39,6 +40,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @SecurityRequirements
     @Operation(summary = "Autenticar com email e senha",
         description = "Retorna access + refresh tokens. Aplica lockout após múltiplas falhas.")
     @ApiResponses({
@@ -52,10 +54,11 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    @Operation(summary = "Renovar access token",
-        description = "Recebe um refresh token válido e devolve um novo access token.")
+    @SecurityRequirements
+    @Operation(summary = "Renovar access token (com rotação do refresh)",
+        description = "Recebe um refresh token válido, invalida-o e emite um novo par access+refresh.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Token renovado"),
+        @ApiResponse(responseCode = "200", description = "Tokens renovados"),
         @ApiResponse(responseCode = "401", description = "Refresh token inválido ou expirado")
     })
     public ResponseEntity<TokenResponseDTO> refresh(@Valid @RequestBody RefreshRequest body) {
@@ -63,6 +66,7 @@ public class AuthController {
     }
 
     @PostMapping("/google")
+    @SecurityRequirements
     @Operation(summary = "Login via Google OAuth",
         description = "Valida o id_token do Google e cria/atualiza o usuário local.")
     @ApiResponses({
@@ -72,6 +76,20 @@ public class AuthController {
     public ResponseEntity<TokenResponseDTO> googleLogin(@Valid @RequestBody GoogleLoginRequest body,
                                                         HttpServletRequest request) {
         return ResponseEntity.ok(googleAuthService.loginWithGoogle(body.idToken(), request));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Encerrar sessão",
+        description = "Revoga TODOS os refresh tokens do usuário autenticado. O access token "
+                    + "atual continua válido até expirar (≤15min). Idempotente.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Logout efetuado"),
+        @ApiResponse(responseCode = "401", description = "Token ausente ou inválido")
+    })
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserDetailsImpl principal,
+                                       HttpServletRequest request) {
+        authService.logout(principal != null ? principal.getUsuario() : null, request);
+        return ResponseEntity.noContent().build();
     }
 
     public record RefreshRequest(@NotBlank String refreshToken) {}
