@@ -152,14 +152,23 @@ public class AuthService {
         int attempts = u.getFailedLoginAttempts() + 1;
         int maxAttempts = config.getInt("seguranca.lockout.tentativas", DEFAULT_LOCKOUT_ATTEMPTS);
         u.setFailedLoginAttempts(attempts);
+        boolean lockedNow = false;
         if (attempts >= maxAttempts) {
             int lockMinutes = config.getInt("seguranca.lockout.minutos", DEFAULT_LOCKOUT_MINUTES);
             u.setLockedUntil(LocalDateTime.now().plusMinutes(lockMinutes));
+            lockedNow = true;
             log.warn("Account locked: {} after {} attempts", u.getEmail(), attempts);
         }
         usuarioRepo.save(u);
+        String ip = AuditService.getClientIp(request);
         audit.log(u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
-            "Tentativa " + attempts, AuditService.getClientIp(request));
+            "Tentativa " + attempts, ip);
+        if (lockedNow) {
+            // Separate event so security dashboards can alert on lockouts
+            // without trawling failed-login noise.
+            audit.log(u.getEmail(), u.getId(), "ACCOUNT_LOCKED", "AUTH", null,
+                "Conta bloqueada após " + attempts + " tentativas", ip);
+        }
     }
 
     private TokenResponseDTO buildResponse(Usuario u, String accessToken, String refreshToken) {

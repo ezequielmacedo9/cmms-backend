@@ -38,6 +38,7 @@ class UsuarioServiceTest {
     @Mock UsuarioRepository usuarioRepository;
     @Mock RoleRepository roleRepository;
     @Mock PasswordEncoder passwordEncoder;
+    @Mock AuditService audit;
 
     @InjectMocks UsuarioService usuarioService;
 

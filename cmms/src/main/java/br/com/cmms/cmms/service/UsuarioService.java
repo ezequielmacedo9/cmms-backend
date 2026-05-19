@@ -29,13 +29,16 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditService audit;
 
     public UsuarioService(UsuarioRepository usuarioRepository,
                           RoleRepository roleRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          AuditService audit) {
         this.usuarioRepository = usuarioRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.audit = audit;
     }
 
     public List<UsuarioResponseDTO> listar() {
@@ -77,7 +80,10 @@ public class UsuarioService {
         novo.setRole(role);
         novo.setAtivo(true);
 
-        return UsuarioResponseDTO.from(usuarioRepository.save(novo));
+        Usuario saved = usuarioRepository.save(novo);
+        audit.log(operador.getEmail(), operador.getId(), "USER_CREATED", "USUARIO", saved.getId(),
+            "Novo usuário " + saved.getEmail() + " criado com role " + role.getNome(), null);
+        return UsuarioResponseDTO.from(saved);
     }
 
     public UsuarioResponseDTO alterarRole(Long id, AlterarRoleRequestDTO dto, String emailOperador) {
@@ -99,15 +105,23 @@ public class UsuarioService {
         Role novaRole = roleRepository.findByNome(dto.getRoleNome())
             .orElseThrow(() -> new NotFoundException("ROLE_NOT_FOUND", "Role não encontrada."));
 
+        String roleAnterior = alvo.getRole().getNome();
         alvo.setRole(novaRole);
-        return UsuarioResponseDTO.from(usuarioRepository.save(alvo));
+        Usuario saved = usuarioRepository.save(alvo);
+        audit.log(operador.getEmail(), operador.getId(), "USER_ROLE_CHANGED", "USUARIO", saved.getId(),
+            "Role de " + saved.getEmail() + ": " + roleAnterior + " -> " + novaRole.getNome(), null);
+        return UsuarioResponseDTO.from(saved);
     }
 
     public UsuarioResponseDTO ativar(Long id, String emailOperador) {
+        Usuario operador = findByEmailOrThrow(emailOperador);
         validarOperadorPodeGerenciarAlvo(id, emailOperador);
         Usuario u = findByIdOrThrow(id);
         u.setAtivo(true);
-        return UsuarioResponseDTO.from(usuarioRepository.save(u));
+        Usuario saved = usuarioRepository.save(u);
+        audit.log(operador.getEmail(), operador.getId(), "USER_ACTIVATED", "USUARIO", saved.getId(),
+            "Usuário " + saved.getEmail() + " reativado", null);
+        return UsuarioResponseDTO.from(saved);
     }
 
     public UsuarioResponseDTO desativar(Long id, String emailOperador) {
@@ -119,16 +133,23 @@ public class UsuarioService {
         validarOperadorPodeGerenciarAlvo(id, emailOperador);
         Usuario u = findByIdOrThrow(id);
         u.setAtivo(false);
-        return UsuarioResponseDTO.from(usuarioRepository.save(u));
+        Usuario saved = usuarioRepository.save(u);
+        audit.log(operador.getEmail(), operador.getId(), "USER_DEACTIVATED", "USUARIO", saved.getId(),
+            "Usuário " + saved.getEmail() + " desativado", null);
+        return UsuarioResponseDTO.from(saved);
     }
 
     public void deletar(Long id, String emailOperador) {
         Usuario operador = findByEmailOrThrow(emailOperador);
-        if (findByIdOrThrow(id).getId().equals(operador.getId())) {
+        Usuario alvo = findByIdOrThrow(id);
+        if (alvo.getId().equals(operador.getId())) {
             throw new ForbiddenException("SELF_DELETE_FORBIDDEN",
                 "Você não pode deletar sua própria conta.");
         }
+        String alvoEmail = alvo.getEmail();
         usuarioRepository.deleteById(id);
+        audit.log(operador.getEmail(), operador.getId(), "USER_DELETED", "USUARIO", id,
+            "Usuário " + alvoEmail + " removido", null);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
