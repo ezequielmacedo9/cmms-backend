@@ -1,4 +1,4 @@
-package br.com.cmms.cmms.Security;
+package br.com.cmms.cmms.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

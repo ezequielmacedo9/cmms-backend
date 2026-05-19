@@ -1,6 +1,6 @@
 package br.com.cmms.cmms.controller;
 
-import br.com.cmms.cmms.Security.UserDetailsImpl;
+import br.com.cmms.cmms.security.UserDetailsImpl;
 import br.com.cmms.cmms.dto.LoginRequestDTO;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
 import br.com.cmms.cmms.service.AuthService;

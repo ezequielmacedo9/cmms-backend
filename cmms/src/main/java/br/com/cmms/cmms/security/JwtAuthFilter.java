@@ -1,4 +1,4 @@
-package br.com.cmms.cmms.Security;
+package br.com.cmms.cmms.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;

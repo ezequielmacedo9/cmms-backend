@@ -1,6 +1,6 @@
 package br.com.cmms.cmms.service;
 
-import br.com.cmms.cmms.Security.JwtService;
+import br.com.cmms.cmms.security.JwtService;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
 import br.com.cmms.cmms.exception.UnauthorizedException;
 import br.com.cmms.cmms.exception.ValidationException;

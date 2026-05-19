@@ -1,4 +1,4 @@
-package br.com.cmms.cmms.Security;
+package br.com.cmms.cmms.security;
 
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.UsuarioRepository;

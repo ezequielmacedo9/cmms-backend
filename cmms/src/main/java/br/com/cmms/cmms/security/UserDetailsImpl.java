@@ -1,4 +1,4 @@
-package br.com.cmms.cmms.Security;
+package br.com.cmms.cmms.security;
 
 import br.com.cmms.cmms.model.Usuario;
 import org.springframework.security.core.GrantedAuthority;

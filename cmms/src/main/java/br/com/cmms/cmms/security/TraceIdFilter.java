@@ -1,4 +1,4 @@
-package br.com.cmms.cmms.Security;
+package br.com.cmms.cmms.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
