@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -81,6 +82,7 @@ public class ManutencaoService {
             .orElseThrow(() -> NotFoundException.of("Manutenção", id)));
     }
 
+    /** Soft delete — vide Manutencao.@SQLRestriction. */
     @Transactional
     @Caching(evict = {
         @CacheEvict(value = "manutencoes",      allEntries = true),
@@ -88,11 +90,11 @@ public class ManutencaoService {
         @CacheEvict(value = "dashboard-stats",  allEntries = true)
     })
     public void deletar(Long id) {
-        if (!manutencaoRepository.existsById(id)) {
-            throw NotFoundException.of("Manutenção", id);
-        }
-        log.info("Deletando manutenção id={}", id);
-        manutencaoRepository.deleteById(id);
+        Manutencao m = manutencaoRepository.findById(id)
+            .orElseThrow(() -> NotFoundException.of("Manutenção", id));
+        log.info("Soft-deleting manutenção id={}", id);
+        m.setDeletedAt(LocalDateTime.now());
+        manutencaoRepository.save(m);
     }
 
     public ManutencaoResponseDTO toDTO(Manutencao m) {

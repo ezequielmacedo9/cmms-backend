@@ -3,8 +3,10 @@ package br.com.cmms.cmms.model;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +15,7 @@ import java.util.List;
     @Index(name = "idx_maquina_status", columnList = "status"),
     @Index(name = "idx_maquina_prioridade", columnList = "prioridade")
 })
+@SQLRestriction("deleted_at IS NULL")
 public class Maquina {
 
     @Id
@@ -44,6 +47,10 @@ public class Maquina {
     )
     @JsonIgnore
     private List<Manutencao> listaDeManutencoes = new ArrayList<>();
+
+    /** Soft-delete marker. See class-level {@code @SQLRestriction}. */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     // 🔹 CONSTRUTORES
     public Maquina() {
@@ -120,6 +127,9 @@ public class Maquina {
         return listaDeManutencoes;
     }
 
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+    public boolean isDeleted() { return deletedAt != null; }
 
     public void adicionarManutencao(Manutencao manutencao) {
         if (manutencao != null) {

@@ -2,7 +2,10 @@ package br.com.cmms.cmms.model;
 
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLRestriction;
+
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +16,7 @@ import java.util.List;
     @Index(name = "idx_manutencao_maquina", columnList = "maquina_id"),
     @Index(name = "idx_manutencao_status", columnList = "status")
 })
+@SQLRestriction("deleted_at IS NULL")
 public class Manutencao {
 
     @ManyToMany
@@ -57,6 +61,10 @@ public class Manutencao {
             inverseJoinColumns = @JoinColumn(name = "peca_id")
     )
     private List<Peca> pecasUtilizadas = new ArrayList<>();
+
+    /** Soft-delete marker. See class-level {@code @SQLRestriction}. */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     // 🔹 CONSTRUTOR VAZIO (JPA)
     public Manutencao() {
@@ -126,6 +134,10 @@ public class Manutencao {
     public List<Peca> getPecasUtilizadas() {
         return pecasUtilizadas;
     }
+
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+    public boolean isDeleted() { return deletedAt != null; }
 
     // 🔹 MÉTODOS DE NEGÓCIO
     public void adicionarPeca(Peca peca) {

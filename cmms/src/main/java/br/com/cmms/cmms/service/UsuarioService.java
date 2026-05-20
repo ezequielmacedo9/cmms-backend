@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -139,6 +140,10 @@ public class UsuarioService {
         return UsuarioResponseDTO.from(saved);
     }
 
+    /**
+     * Soft delete — stamps {@code deleted_at}. Original row stays for audit
+     * + recovery; {@code @SQLRestriction} hides it from every read query.
+     */
     public void deletar(Long id, String emailOperador) {
         Usuario operador = findByEmailOrThrow(emailOperador);
         Usuario alvo = findByIdOrThrow(id);
@@ -147,9 +152,10 @@ public class UsuarioService {
                 "Você não pode deletar sua própria conta.");
         }
         String alvoEmail = alvo.getEmail();
-        usuarioRepository.deleteById(id);
+        alvo.setDeletedAt(LocalDateTime.now());
+        usuarioRepository.save(alvo);
         audit.log(operador.getEmail(), operador.getId(), "USER_DELETED", "USUARIO", id,
-            "Usuário " + alvoEmail + " removido", null);
+            "Usuário " + alvoEmail + " removido (soft delete)", null);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────

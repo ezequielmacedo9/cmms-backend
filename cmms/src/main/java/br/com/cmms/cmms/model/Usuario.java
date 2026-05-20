@@ -1,6 +1,7 @@
 package br.com.cmms.cmms.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.SQLRestriction;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 
 @Entity
+@SQLRestriction("deleted_at IS NULL")
 public class Usuario implements UserDetails {
 
     @Id
@@ -62,6 +64,14 @@ public class Usuario implements UserDetails {
     @Column(updatable = false)
     private LocalDateTime dataCriacao;
 
+    /**
+     * Soft-delete marker. {@code null} = active row. When set, Hibernate
+     * filters this user out of every query thanks to the class-level
+     * {@code @SQLRestriction}.
+     */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private Role role;
@@ -106,6 +116,9 @@ public class Usuario implements UserDetails {
     public boolean isAtivo() { return !Boolean.FALSE.equals(ativo); }
     public void setAtivo(boolean ativo) { this.ativo = ativo; }
     public LocalDateTime getDataCriacao() { return dataCriacao; }
+    public LocalDateTime getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(LocalDateTime deletedAt) { this.deletedAt = deletedAt; }
+    public boolean isDeleted() { return deletedAt != null; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
 

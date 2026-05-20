@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -79,6 +80,10 @@ public class MaquinaService {
         return toDTO(maquinaRepository.save(m));
     }
 
+    /**
+     * Soft delete: stamps {@code deleted_at} so the row is filtered out of
+     * every subsequent query. Auditing keeps the row, allowing recovery.
+     */
     @Transactional
     @Caching(evict = {
         @CacheEvict(value = "maquinas",        allEntries = true),
@@ -86,11 +91,11 @@ public class MaquinaService {
         @CacheEvict(value = "dashboard-stats", allEntries = true)
     })
     public void deletar(Long id) {
-        if (!maquinaRepository.existsById(id)) {
-            throw NotFoundException.of("Máquina", id);
-        }
-        log.info("Deletando máquina id={}", id);
-        maquinaRepository.deleteById(id);
+        Maquina m = maquinaRepository.findById(id)
+            .orElseThrow(() -> NotFoundException.of("Máquina", id));
+        log.info("Soft-deleting máquina id={}", id);
+        m.setDeletedAt(LocalDateTime.now());
+        maquinaRepository.save(m);
     }
 
     private void applyDto(MaquinaRequestDTO dto, Maquina m) {
