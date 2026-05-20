@@ -158,6 +158,41 @@ class AuthFlowIntegrationTest {
             });
     }
 
+    @Test
+    @DisplayName("/api/v1/auth/login funciona via bridge legacy (mesma resposta)")
+    void apiV1BridgeRoutesToLegacy() throws Exception {
+        // Need the v1 rewrite filter registered alongside the security chain.
+        if (mockMvc == null) {
+            mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(traceIdFilter, v1RewriteFilter(), springSecurityFilterChain)
+                .build();
+        }
+        String body = loginJson("superadmin@email.com", "dev123!");
+        mockMvc.perform(post("/api/v1/auth/login")
+                .contentType("application/json")
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    private jakarta.servlet.Filter v1RewriteFilter() {
+        return (req, res, chain) -> {
+            if (req instanceof jakarta.servlet.http.HttpServletRequest http) {
+                String uri = http.getRequestURI();
+                if (uri.startsWith("/api/v1/")) {
+                    String rewritten = "/api/" + uri.substring("/api/v1/".length());
+                    chain.doFilter(new jakarta.servlet.http.HttpServletRequestWrapper(http) {
+                        @Override public String getRequestURI()  { return rewritten; }
+                        @Override public String getServletPath() { return rewritten; }
+                        @Override public String getPathInfo()    { return null; }
+                    }, res);
+                    return;
+                }
+            }
+            chain.doFilter(req, res);
+        };
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private String loginJson(String email, String senha) throws Exception {
