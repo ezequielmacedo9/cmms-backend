@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,18 +21,34 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @EnableMethodSecurity
 @Configuration
 public class SecurityConfig {
 
-    private static final List<String> ALLOWED_ORIGIN_PATTERNS = List.of(
-        "https://*.vercel.app",
-        "http://localhost:4200"
+    /**
+     * Default origins for local development. In production set the
+     * {@code APP_CORS_ALLOWED_ORIGINS} env var (comma-separated, e.g.
+     * {@code https://cmms.example.com,https://staging.cmms.example.com})
+     * to lock CORS to the exact hosts.
+     *
+     * <p>Wildcard like {@code https://*.vercel.app} stays available as a
+     * configurable option, but is no longer baked into the code.
+     */
+    private static final List<String> DEFAULT_DEV_ORIGINS = List.of(
+        "http://localhost:4200",
+        "http://localhost:8080"
     );
 
     private final JwtAuthFilter jwtAuthFilter;
+
+    @Value("${app.cors.allowed-origins:}")
+    private String allowedOriginsCsv;
+
+    @Value("${app.cors.allow-credentials:false}")
+    private boolean allowCredentials;
 
     public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
@@ -45,16 +62,43 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(ALLOWED_ORIGIN_PATTERNS);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+
+        List<String> origins = parseAllowedOrigins();
+        // Patterns (com '*') vs origins exatas — usar a API correta evita
+        // o erro silencioso onde 'allowedOrigins("*")' nao funciona junto com
+        // 'allowCredentials=true'.
+        if (origins.stream().anyMatch(o -> o.contains("*"))) {
+            config.setAllowedOriginPatterns(origins);
+        } else {
+            config.setAllowedOrigins(origins);
+        }
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization"));
-        config.setAllowCredentials(false);
+        config.setExposedHeaders(List.of("Authorization", "X-Trace-Id", "Retry-After"));
+        config.setAllowCredentials(allowCredentials);
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    /**
+     * Resolve the effective CORS whitelist:
+     * <ul>
+     *   <li>Comma-separated values from {@code app.cors.allowed-origins} (env
+     *       {@code APP_CORS_ALLOWED_ORIGINS}) when provided.</li>
+     *   <li>Otherwise the dev-only fallback used in {@code application.properties}.</li>
+     * </ul>
+     */
+    private List<String> parseAllowedOrigins() {
+        if (allowedOriginsCsv == null || allowedOriginsCsv.isBlank()) {
+            return DEFAULT_DEV_ORIGINS;
+        }
+        return Arrays.stream(allowedOriginsCsv.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .toList();
     }
 
     @Bean
