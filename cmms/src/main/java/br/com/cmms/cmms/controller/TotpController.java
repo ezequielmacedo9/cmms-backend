@@ -10,6 +10,7 @@ import br.com.cmms.cmms.service.TotpService;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.qrcode.QRCodeWriter;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -51,6 +52,8 @@ public class TotpController {
 
     /** Step 1: generate secret + QR code data URI. */
     @PostMapping("/setup")
+    @Operation(summary = "Iniciar configuração 2FA (TOTP)",
+        description = "Gera segredo + QR code base64. Estado fica PENDING até /verify.")
     public ResponseEntity<Map<String, Object>> setup(@AuthenticationPrincipal UserDetails ud) {
         Usuario u = findUser(ud.getUsername());
         String secret = totpService.generateSecret();
@@ -70,6 +73,8 @@ public class TotpController {
 
     /** Step 2: verify TOTP code to confirm setup and enable 2FA. */
     @PostMapping("/verify")
+    @Operation(summary = "Confirmar configuração 2FA",
+        description = "Confirma o código TOTP gerado pelo app autenticador e ativa o 2FA.")
     public ResponseEntity<Map<String, String>> verify(
             @Valid @RequestBody CodeRequest body,
             @AuthenticationPrincipal UserDetails ud,
@@ -96,6 +101,8 @@ public class TotpController {
 
     /** Disable 2FA (requires current password confirmation). */
     @DeleteMapping
+    @Operation(summary = "Desativar 2FA",
+        description = "Requer confirmação da senha atual.")
     public ResponseEntity<Map<String, String>> disable(
             @Valid @RequestBody PasswordRequest body,
             @AuthenticationPrincipal UserDetails ud,
@@ -114,6 +121,8 @@ public class TotpController {
 
     /** Verify 2FA code during login (call after password auth). */
     @PostMapping("/login-verify")
+    @Operation(summary = "Validar código TOTP durante login",
+        description = "Para usuários com 2FA ativo. Sem 2FA retorna sempre valid=true.")
     public ResponseEntity<Map<String, Boolean>> loginVerify(@Valid @RequestBody CodeRequest body,
                                                              @AuthenticationPrincipal UserDetails ud) {
         Usuario u = findUser(ud.getUsername());

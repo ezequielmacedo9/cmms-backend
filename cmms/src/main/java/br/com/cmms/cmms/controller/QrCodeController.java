@@ -8,6 +8,8 @@ import com.google.zxing.EncodeHintType;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -31,8 +33,12 @@ public class QrCodeController {
     public QrCodeController(MaquinaRepository repo) { this.repo = repo; }
 
     @GetMapping("/{id}/qrcode")
-    public ResponseEntity<byte[]> qrcode(@PathVariable Long id,
-                                          @RequestParam(defaultValue = "200") int size) {
+    @Operation(summary = "Gerar QR code da máquina",
+        description = "QR code PNG apontando para a ficha da máquina no frontend.")
+    public ResponseEntity<byte[]> qrcode(
+            @PathVariable Long id,
+            @Parameter(description = "Lado do QR em pixels (100..600).")
+            @RequestParam(defaultValue = "200") int size) {
         Maquina m = repo.findById(id)
             .orElseThrow(() -> NotFoundException.of("Máquina", id));
 

@@ -4,6 +4,8 @@ import br.com.cmms.cmms.dto.AuditLogResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.model.AuditLog;
 import br.com.cmms.cmms.repository.AuditLogRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,9 +32,14 @@ public class AuditLogController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar trilha de auditoria",
+        description = "Ordem cronológica decrescente. Suporta filtro por e-mail (q) e paginação.")
     public ResponseEntity<PagedResponseDTO<AuditLogResponseDTO>> listar(
+            @Parameter(description = "Página (0-indexed).")
             @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Tamanho da página (1..100).")
             @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size,
+            @Parameter(description = "Filtro parcial por user_email (case-insensitive).")
             @RequestParam(required = false) String q) {
 
         int boundedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);

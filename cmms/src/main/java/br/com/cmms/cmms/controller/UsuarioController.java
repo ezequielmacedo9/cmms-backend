@@ -5,6 +5,9 @@ import br.com.cmms.cmms.dto.ConvidarUsuarioRequestDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.dto.UsuarioResponseDTO;
 import br.com.cmms.cmms.service.UsuarioService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -29,12 +32,15 @@ public class UsuarioController {
     }
 
     @GetMapping("/me")
+    @Operation(summary = "Obter perfil do usuário autenticado")
     public ResponseEntity<UsuarioResponseDTO> meuPerfil(@AuthenticationPrincipal UserDetails principal) {
         return ResponseEntity.ok(usuarioService.getMeuPerfil(principal.getUsername()));
     }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Listar usuários",
+        description = "Restrito a SUPER_ADMIN e ADMIN. unpaged=true devolve lista completa.")
     public ResponseEntity<?> listar(
             @RequestParam(name = "unpaged", defaultValue = "false") boolean unpaged,
             @PageableDefault(size = 20) Pageable pageable) {
@@ -47,6 +53,14 @@ public class UsuarioController {
 
     @PostMapping("/convidar")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Convidar/criar novo usuário",
+        description = "ADMIN não pode criar SUPER_ADMIN ou outros ADMINs.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Usuário criado"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+        @ApiResponse(responseCode = "403", description = "Operador não pode atribuir essa role"),
+        @ApiResponse(responseCode = "409", description = "Email já cadastrado")
+    })
     public ResponseEntity<UsuarioResponseDTO> convidar(
             @Valid @RequestBody ConvidarUsuarioRequestDTO dto,
             @AuthenticationPrincipal UserDetails principal) {
@@ -55,6 +69,8 @@ public class UsuarioController {
 
     @PutMapping("/{id}/role")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Alterar role de um usuário",
+        description = "Ninguém pode alterar a própria role. ADMIN não pode promover/rebaixar SUPER_ADMIN/ADMIN.")
     public ResponseEntity<UsuarioResponseDTO> alterarRole(
             @PathVariable Long id,
             @Valid @RequestBody AlterarRoleRequestDTO dto,
@@ -64,6 +80,7 @@ public class UsuarioController {
 
     @PutMapping("/{id}/ativar")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Reativar usuário desativado")
     public ResponseEntity<UsuarioResponseDTO> ativar(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {
@@ -72,6 +89,8 @@ public class UsuarioController {
 
     @PutMapping("/{id}/desativar")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Desativar usuário",
+        description = "Não permite desativar a própria conta.")
     public ResponseEntity<UsuarioResponseDTO> desativar(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {
@@ -80,6 +99,8 @@ public class UsuarioController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Excluir usuário (soft delete) — apenas SUPER_ADMIN",
+        description = "Marca deleted_at; row preserved para auditoria.")
     public ResponseEntity<Void> deletar(
             @PathVariable Long id,
             @AuthenticationPrincipal UserDetails principal) {

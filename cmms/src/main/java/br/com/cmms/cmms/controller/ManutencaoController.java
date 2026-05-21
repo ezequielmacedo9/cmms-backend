@@ -4,6 +4,10 @@ import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.service.ManutencaoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +39,13 @@ public class ManutencaoController {
 
     @PostMapping("/{maquinaId}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
+    @Operation(summary = "Registrar nova manutenção em uma máquina")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Manutenção registrada"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+        @ApiResponse(responseCode = "403", description = "Sem permissão"),
+        @ApiResponse(responseCode = "404", description = "Máquina não encontrada")
+    })
     public ResponseEntity<ManutencaoResponseDTO> cadastrar(
             @PathVariable Long maquinaId,
             @RequestBody @Valid ManutencaoRequestDTO dto
@@ -43,7 +54,10 @@ public class ManutencaoController {
     }
 
     @GetMapping
+    @Operation(summary = "Listar manutenções",
+        description = "Default ordenado por dataManutencao DESC. unpaged=true para lista completa.")
     public ResponseEntity<?> listar(
+            @Parameter(description = "Quando true, devolve lista completa.")
             @RequestParam(name = "unpaged", defaultValue = "false") boolean unpaged,
             @PageableDefault(size = 20, sort = "dataManutencao", direction = Sort.Direction.DESC) Pageable pageable) {
         if (unpaged) {
@@ -54,6 +68,7 @@ public class ManutencaoController {
     }
 
     @GetMapping("/maquina/{maquinaId}")
+    @Operation(summary = "Listar manutenções de uma máquina específica")
     public ResponseEntity<?> listarPorMaquina(
             @PathVariable Long maquinaId,
             @RequestParam(name = "unpaged", defaultValue = "false") boolean unpaged,
@@ -66,6 +81,8 @@ public class ManutencaoController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Excluir manutenção (soft delete)",
+        description = "A manutenção é marcada como deletada mas permanece no banco para auditoria.")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         manutencaoService.deletar(id);
         return ResponseEntity.noContent().build();

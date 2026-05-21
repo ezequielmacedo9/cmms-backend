@@ -6,6 +6,7 @@ import br.com.cmms.cmms.exception.ValidationException;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import br.com.cmms.cmms.service.AuditService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -37,12 +38,14 @@ public class ProfileController {
     }
 
     @GetMapping
+    @Operation(summary = "Obter perfil do usuário autenticado")
     public ResponseEntity<Map<String, Object>> getProfile(@AuthenticationPrincipal UserDetails ud) {
         Usuario u = findUser(ud.getUsername());
         return ResponseEntity.ok(profileMap(u));
     }
 
     @PutMapping
+    @Operation(summary = "Atualizar perfil (nome, telefone, cargo, departamento)")
     public ResponseEntity<Map<String, Object>> updateProfile(
             @Valid @RequestBody ProfileUpdateRequest req,
             @AuthenticationPrincipal UserDetails ud,
@@ -58,6 +61,7 @@ public class ProfileController {
     }
 
     @PostMapping("/avatar")
+    @Operation(summary = "Atualizar avatar do usuário (base64, max ~300KB)")
     public ResponseEntity<Map<String, Object>> uploadAvatar(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails ud) {
@@ -75,6 +79,8 @@ public class ProfileController {
     }
 
     @PostMapping("/password")
+    @Operation(summary = "Trocar senha do usuário autenticado",
+        description = "Requer a senha atual + nova senha de pelo menos 8 caracteres.")
     public ResponseEntity<Map<String, String>> changePassword(
             @Valid @RequestBody ChangePasswordRequest req,
             @AuthenticationPrincipal UserDetails ud,

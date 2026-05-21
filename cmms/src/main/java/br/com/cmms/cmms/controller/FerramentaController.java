@@ -4,6 +4,10 @@ import br.com.cmms.cmms.dto.FerramentaRequestDTO;
 import br.com.cmms.cmms.dto.FerramentaResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.service.FerramentaService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -35,13 +39,22 @@ public class FerramentaController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Cadastrar nova ferramenta")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ferramenta criada"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+        @ApiResponse(responseCode = "403", description = "Sem permissão")
+    })
     public ResponseEntity<FerramentaResponseDTO> cadastrar(@Valid @RequestBody FerramentaRequestDTO dto) {
         return ResponseEntity.ok(ferramentaService.cadastrar(dto));
     }
 
     @GetMapping
+    @Operation(summary = "Listar ferramentas",
+        description = "Retorna Page<FerramentaResponseDTO> ou List quando unpaged=true.")
     public ResponseEntity<?> listar(
-            @RequestParam(required = false) String q,
+            @Parameter(description = "Busca livre por nome ou código.") @RequestParam(required = false) String q,
+            @Parameter(description = "Quando true, devolve lista completa sem paginação.")
             @RequestParam(name = "unpaged", defaultValue = "false") boolean unpaged,
             @PageableDefault(size = 20) Pageable pageable) {
         if (unpaged) {
@@ -52,12 +65,18 @@ public class FerramentaController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Buscar ferramenta por id")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ferramenta encontrada"),
+        @ApiResponse(responseCode = "404", description = "Ferramenta não encontrada")
+    })
     public ResponseEntity<FerramentaResponseDTO> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(ferramentaService.buscarPorId(id));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Atualizar ferramenta")
     public ResponseEntity<FerramentaResponseDTO> atualizar(@PathVariable Long id,
                                                            @Valid @RequestBody FerramentaRequestDTO dto) {
         return ResponseEntity.ok(ferramentaService.atualizar(id, dto));
@@ -65,6 +84,7 @@ public class FerramentaController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Excluir ferramenta")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         ferramentaService.deletar(id);
         return ResponseEntity.noContent().build();

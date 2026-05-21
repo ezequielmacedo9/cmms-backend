@@ -5,6 +5,8 @@ import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.service.MaquinaService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -62,12 +64,18 @@ public class MaquinaController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Buscar máquina por id")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Máquina encontrada"),
+        @ApiResponse(responseCode = "404", description = "Máquina não encontrada")
+    })
     public ResponseEntity<MaquinaResponseDTO> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(maquinaService.buscarPorId(id));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Atualizar máquina")
     public ResponseEntity<MaquinaResponseDTO> atualizar(
             @PathVariable Long id,
             @RequestBody @Valid MaquinaRequestDTO dto
@@ -77,6 +85,8 @@ public class MaquinaController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    @Operation(summary = "Excluir máquina (soft delete)",
+        description = "A máquina é marcada como deletada mas permanece no banco para auditoria.")
     public ResponseEntity<Void> deletar(@PathVariable Long id) {
         maquinaService.deletar(id);
         return ResponseEntity.noContent().build();
