@@ -12,3 +12,7 @@ Thumbs.db
 
 # Build output (delegated to cmms/.gitignore)
 target/
+
+# JaCoCo coverage reports — regenerated on each `mvn test`
+**/jacoco.exec
+**/site/jacoco/
