@@ -30,23 +30,18 @@
 - **FASE 8** — 404/403 custom, route animations, breadcrumb, ConfirmDialog, atalhos teclado, ExportService, TableState, toast SVG animado, print stylesheet
 - **FASE 9** — Notification polling, PWA corrigido, tour onboarding CDK, SEO+JSON-LD, boot loader, skip-link
 - **FASE 10-1** — 89 testes backend (+34), JaCoCo 42.5%
+- **FASE 11** — Integração dos componentes nas páginas: `TableState` (busca viva + sort por coluna + paginação por signals) em maquinas/manutencoes/estoque/usuarios; `ExportService` substitui o CSV duplicado; `ConfirmDialogService` substitui os modais de delete inline; tour de onboarding ativado no Dashboard; `ShortcutsHelpComponent` (tecla `?`)
 
 **Estado atual:**
 - Backend: 89 testes, BUILD SUCCESS, zero warnings, HEAD `3fef329`
-- Frontend: 45 testes, prod build 482kB, zero warnings, HEAD `67160b3`
+- Frontend: 45 testes, prod build 489kB, zero warnings, HEAD `1e9e4bf` (FASE 11 + pendências)
+- Pendências resolvidas: CSS morto dos modais removido; service worker não intercepta mais `/api/` (sem erros `safeFetch/handleFetch`)
 
 ---
 
 ## ⏳ Pendências
 
-### FASE 11 — Integrar componentes nas páginas (PRIORIDADE ALTA)
-- Migrar maquinas/manutencoes/estoque/usuarios para `TableState` (sort + filter live)
-- Substituir export CSV duplicado por `ExportService`
-- Substituir modais delete inline por `ConfirmDialogService`
-- Ativar `OnboardingTourService.startIfFirstTime()` no Dashboard
-- Criar `ShortcutsHelpComponent` que escuta `KeyboardShortcutsService.showHelp$`
-
-### FASE 10.2 — Integration tests endpoints
+### FASE 10.2 — Integration tests endpoints (PRIORIDADE ALTA)
 - `MaquinaControllerIntegrationTest`, `ManutencaoControllerIntegrationTest`, `PecaControllerIntegrationTest`
 - `@SpringBootTest + MockMvc + token JWT real`
 
@@ -74,14 +69,15 @@ Paths: C:\Users\USER\cmms-backend e C:\Users\USER\cmms-frontend
 
 ESTADO: 89 testes backend, 45 frontend, BUILD SUCCESS, zero warnings.
 
-PRÓXIMA FASE (11) — Integrar componentes criados nas páginas:
-1. Migrar tabelas (maquinas/manutencoes/estoque/usuarios) para TableState com sort/filter
-2. Substituir export CSV duplicado por ExportService
-3. Substituir modais delete inline por ConfirmDialogService
-4. Ativar OnboardingTourService.startIfFirstTime() no Dashboard
-5. Criar ShortcutsHelpComponent
+FASE 11 CONCLUIDA (frontend, HEAD 1e9e4bf): TableState (sort+filter) nas 4 tabelas,
+ExportService, ConfirmDialogService, tour de onboarding no Dashboard e ShortcutsHelpComponent.
+Pendencias resolvidas: CSS morto removido + service worker nao intercepta /api/.
+Build verde, 45 testes, zero warnings.
 
-Depois: integration tests dos endpoints (FASE 10.2) e cobertura 80% (FASE 10.3).
+PRÓXIMA FASE (10.2) — Integration tests dos endpoints (backend):
+1. MaquinaControllerIntegrationTest, ManutencaoControllerIntegrationTest, PecaControllerIntegrationTest
+2. @SpringBootTest + MockMvc + token JWT real
+Depois: cobertura 80% (FASE 10.3) e Lighthouse 90+.
 
 Leia AGENTS.md. Build verde obrigatório antes de push. Commits granulares em ASCII
 via git commit -F C:\WINDOWS\TEMP\opencode\commit-msg.txt. Push ao final de cada fase.
