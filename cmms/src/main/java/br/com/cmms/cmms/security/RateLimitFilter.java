@@ -61,6 +61,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final List<Policy> POLICIES = List.of(
         new Policy("login",          matches("POST", "/api/auth/login"),                10, Duration.ofMinutes(1)),
+        new Policy("register",       matches("POST", "/api/auth/register"),              5, Duration.ofMinutes(10)),
         new Policy("google",         matches("POST", "/api/auth/google"),               20, Duration.ofMinutes(1)),
         new Policy("refresh",        matches("POST", "/api/auth/refresh"),              30, Duration.ofMinutes(1)),
         new Policy("forgot",         matches("POST", "/api/auth/forgot-password"),       3, Duration.ofMinutes(5)),

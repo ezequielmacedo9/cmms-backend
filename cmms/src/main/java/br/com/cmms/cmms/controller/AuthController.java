@@ -2,9 +2,11 @@ package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.security.UserDetailsImpl;
 import br.com.cmms.cmms.dto.LoginRequestDTO;
+import br.com.cmms.cmms.dto.RegistroRequestDTO;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
 import br.com.cmms.cmms.service.AuthService;
 import br.com.cmms.cmms.service.GoogleAuthService;
+import br.com.cmms.cmms.service.RegistroService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -13,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,10 +36,27 @@ public class AuthController {
 
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
+    private final RegistroService registroService;
 
-    public AuthController(AuthService authService, GoogleAuthService googleAuthService) {
+    public AuthController(AuthService authService, GoogleAuthService googleAuthService,
+                          RegistroService registroService) {
         this.authService = authService;
         this.googleAuthService = googleAuthService;
+        this.registroService = registroService;
+    }
+
+    @PostMapping("/register")
+    @SecurityRequirements
+    @Operation(summary = "Cadastrar nova empresa + administrador",
+        description = "Cria a empresa (tenant) e o primeiro usuário ADMIN, retornando tokens (login automático).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Empresa e administrador criados"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos"),
+        @ApiResponse(responseCode = "409", description = "Email já cadastrado")
+    })
+    public ResponseEntity<TokenResponseDTO> register(@Valid @RequestBody RegistroRequestDTO request,
+                                                     HttpServletRequest httpRequest) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(registroService.registrar(request, httpRequest));
     }
 
     @PostMapping("/login")
