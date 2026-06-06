@@ -44,6 +44,10 @@ public class Manutencao {
     @Column(length = 20)
     private String status = "ABERTA";
 
+    /** Tenant owner. Every query is scoped to this column. */
+    @Column(name = "empresa_id")
+    private Long empresaId;
+
     @ManyToOne
     @JoinColumn(name = "maquina_id", nullable = false)
     private Maquina maquina;
@@ -74,6 +78,9 @@ public class Manutencao {
     public Long getId() {
         return id;
     }
+
+    public Long getEmpresaId() { return empresaId; }
+    public void setEmpresaId(Long empresaId) { this.empresaId = empresaId; }
 
     public String getTipo() {
         return tipo;

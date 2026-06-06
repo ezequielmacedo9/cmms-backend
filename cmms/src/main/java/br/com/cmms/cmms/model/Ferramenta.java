@@ -22,6 +22,10 @@ public class Ferramenta {
     private String responsavel;
     private LocalDate dataUltimaManutencao;
 
+    /** Tenant owner. Every query is scoped to this column. */
+    @Column(name = "empresa_id")
+    private Long empresaId;
+
 
     public Ferramenta(){
     }
@@ -37,6 +41,9 @@ public class Ferramenta {
     public void setId(long id) {
         this.id = id;
     }
+
+    public Long getEmpresaId() { return empresaId; }
+    public void setEmpresaId(Long empresaId) { this.empresaId = empresaId; }
 
     public void setDataUltimaManutencao(LocalDate dataUltimaManutencao) {
         this.dataUltimaManutencao = dataUltimaManutencao;

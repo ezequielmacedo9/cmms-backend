@@ -76,6 +76,10 @@ public class Usuario implements UserDetails {
     @JoinColumn(name = "role_id")
     private Role role;
 
+    /** Tenant owner. Null only for the platform super-admin / legacy rows. */
+    @Column(name = "empresa_id")
+    private Long empresaId;
+
     @PrePersist
     protected void onCreate() {
         if (dataCriacao == null) dataCriacao = LocalDateTime.now();
@@ -87,6 +91,8 @@ public class Usuario implements UserDetails {
     // ── getters/setters ──────────────────────────────────────────────────
 
     public Long getId() { return id; }
+    public Long getEmpresaId() { return empresaId; }
+    public void setEmpresaId(Long empresaId) { this.empresaId = empresaId; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
     public String getSenha() { return senha; }
