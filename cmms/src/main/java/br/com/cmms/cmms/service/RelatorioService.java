@@ -6,6 +6,7 @@ import br.com.cmms.cmms.model.Peca;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import br.com.cmms.cmms.repository.PecaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
@@ -30,19 +31,22 @@ public class RelatorioService {
     private final ManutencaoRepository manutencaoRepo;
     private final MaquinaRepository maquinaRepo;
     private final PecaRepository pecaRepo;
+    private final TenantResolver tenant;
 
     public RelatorioService(ManutencaoRepository manutencaoRepo,
                             MaquinaRepository maquinaRepo,
-                            PecaRepository pecaRepo) {
+                            PecaRepository pecaRepo,
+                            TenantResolver tenant) {
         this.manutencaoRepo = manutencaoRepo;
         this.maquinaRepo = maquinaRepo;
         this.pecaRepo = pecaRepo;
+        this.tenant = tenant;
     }
 
     // ── EXCEL ─────────────────────────────────────────────────────────────
 
     public byte[] manutencoesExcel() throws Exception {
-        List<Manutencao> lista = manutencaoRepo.findAll();
+        List<Manutencao> lista = manutencaoRepo.findByEmpresaIdOrderByDataManutencaoDesc(tenant.requireEmpresaId());
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Manutenções");
             CellStyle hs = headerStyle(wb);
@@ -69,7 +73,7 @@ public class RelatorioService {
     }
 
     public byte[] maquinasExcel() throws Exception {
-        List<Maquina> lista = maquinaRepo.findAll();
+        List<Maquina> lista = maquinaRepo.findByEmpresaId(tenant.requireEmpresaId());
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Máquinas");
             CellStyle hs = headerStyle(wb);
@@ -94,7 +98,7 @@ public class RelatorioService {
     }
 
     public byte[] estoqueExcel() throws Exception {
-        List<Peca> lista = pecaRepo.findAll();
+        List<Peca> lista = pecaRepo.findByEmpresaId(tenant.requireEmpresaId());
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("Estoque");
             CellStyle hs = headerStyle(wb);
@@ -119,7 +123,7 @@ public class RelatorioService {
     // ── PDF ───────────────────────────────────────────────────────────────
 
     public byte[] manutencoesPdf() throws Exception {
-        List<Manutencao> lista = manutencaoRepo.findAll();
+        List<Manutencao> lista = manutencaoRepo.findByEmpresaIdOrderByDataManutencaoDesc(tenant.requireEmpresaId());
         return buildPdf("Relatório de Manutenções", lista.size(),
             new String[]{"Máquina","Tipo","Prioridade","Status","Data"},
             new float[]{0.30f,0.15f,0.15f,0.15f,0.25f},
@@ -131,7 +135,7 @@ public class RelatorioService {
     }
 
     public byte[] maquinasPdf() throws Exception {
-        List<Maquina> lista = maquinaRepo.findAll();
+        List<Maquina> lista = maquinaRepo.findByEmpresaId(tenant.requireEmpresaId());
         return buildPdf("Relatório de Máquinas", lista.size(),
             new String[]{"Nome","Setor","Status","Prioridade","Últ. Manut."},
             new float[]{0.28f,0.18f,0.14f,0.14f,0.26f},
@@ -143,7 +147,7 @@ public class RelatorioService {
     }
 
     public byte[] estoquePdf() throws Exception {
-        List<Peca> lista = pecaRepo.findAll();
+        List<Peca> lista = pecaRepo.findByEmpresaId(tenant.requireEmpresaId());
         return buildPdf("Relatório de Estoque", lista.size(),
             new String[]{"Nome","Código","Qtd.","Vida Útil (h)","Custo (R$)"},
             new float[]{0.35f,0.2f,0.1f,0.15f,0.2f},

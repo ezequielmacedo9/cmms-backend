@@ -7,10 +7,9 @@ import br.com.cmms.cmms.model.Manutencao;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,6 +19,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Maintenance CRUD, fully scoped to the caller's empresa. A maintenance can
+ * only be attached to a machine that belongs to the same empresa, and every
+ * read/delete is tenant-scoped.
+ */
 @Service
 public class ManutencaoService {
 
@@ -27,24 +31,26 @@ public class ManutencaoService {
 
     private final ManutencaoRepository manutencaoRepository;
     private final MaquinaRepository maquinaRepository;
+    private final TenantResolver tenant;
 
     public ManutencaoService(ManutencaoRepository manutencaoRepository,
-                             MaquinaRepository maquinaRepository) {
+                             MaquinaRepository maquinaRepository,
+                             TenantResolver tenant) {
         this.manutencaoRepository = manutencaoRepository;
         this.maquinaRepository = maquinaRepository;
+        this.tenant = tenant;
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "manutencoes",      allEntries = true),
-        @CacheEvict(value = "manutencoes-page", allEntries = true),
-        @CacheEvict(value = "dashboard-stats",  allEntries = true)
-    })
     public ManutencaoResponseDTO cadastrar(ManutencaoRequestDTO dto, Long maquinaId) {
-        Maquina maquina = maquinaRepository.findById(maquinaId)
+        Long empresaId = tenant.requireEmpresaId();
+        // The machine must belong to the caller's empresa — prevents attaching
+        // a maintenance to another tenant's machine.
+        Maquina maquina = maquinaRepository.findByIdAndEmpresaId(maquinaId, empresaId)
             .orElseThrow(() -> NotFoundException.of("Máquina", maquinaId));
 
         Manutencao m = new Manutencao();
+        m.setEmpresaId(empresaId);
         m.setTipo(dto.tipo());
         m.setTecnico(dto.tecnico());
         m.setDescricao(dto.descricao());
@@ -59,38 +65,36 @@ public class ManutencaoService {
 
     /** Legacy non-paged listing. Kept for reports and integrations. */
     public List<ManutencaoResponseDTO> listar() {
-        return manutencaoRepository.findAll().stream().map(this::toDTO).toList();
+        return manutencaoRepository.findByEmpresaIdOrderByDataManutencaoDesc(tenant.requireEmpresaId())
+            .stream().map(this::toDTO).toList();
     }
 
     /** Preferred listing endpoint — paged, eager-fetches the machine to avoid N+1. */
     public Page<ManutencaoResponseDTO> listar(Pageable pageable) {
-        return manutencaoRepository.findAll(pageable).map(this::toDTO);
+        return manutencaoRepository.findByEmpresaId(tenant.requireEmpresaId(), pageable).map(this::toDTO);
     }
 
     public List<ManutencaoResponseDTO> listarPorMaquina(Long maquinaId) {
-        return manutencaoRepository.findByMaquinaIdOrderByDataManutencaoDesc(maquinaId)
+        return manutencaoRepository
+            .findByMaquinaIdAndEmpresaIdOrderByDataManutencaoDesc(maquinaId, tenant.requireEmpresaId())
             .stream().map(this::toDTO).toList();
     }
 
     public Page<ManutencaoResponseDTO> listarPorMaquina(Long maquinaId, Pageable pageable) {
-        return manutencaoRepository.findByMaquinaIdOrderByDataManutencaoDesc(maquinaId, pageable)
+        return manutencaoRepository
+            .findByMaquinaIdAndEmpresaIdOrderByDataManutencaoDesc(maquinaId, tenant.requireEmpresaId(), pageable)
             .map(this::toDTO);
     }
 
     public ManutencaoResponseDTO buscarPorId(Long id) {
-        return toDTO(manutencaoRepository.findById(id)
+        return toDTO(manutencaoRepository.findByIdAndEmpresaId(id, tenant.requireEmpresaId())
             .orElseThrow(() -> NotFoundException.of("Manutenção", id)));
     }
 
     /** Soft delete — vide Manutencao.@SQLRestriction. */
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "manutencoes",      allEntries = true),
-        @CacheEvict(value = "manutencoes-page", allEntries = true),
-        @CacheEvict(value = "dashboard-stats",  allEntries = true)
-    })
     public void deletar(Long id) {
-        Manutencao m = manutencaoRepository.findById(id)
+        Manutencao m = manutencaoRepository.findByIdAndEmpresaId(id, tenant.requireEmpresaId())
             .orElseThrow(() -> NotFoundException.of("Manutenção", id));
         log.info("Soft-deleting manutenção id={}", id);
         m.setDeletedAt(LocalDateTime.now());

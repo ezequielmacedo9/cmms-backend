@@ -10,6 +10,7 @@ import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ class UsuarioServiceTest {
     @Mock RoleRepository roleRepository;
     @Mock PasswordEncoder passwordEncoder;
     @Mock AuditService audit;
+    @Mock TenantResolver tenant;
 
     @InjectMocks UsuarioService usuarioService;
 
@@ -127,7 +129,7 @@ class UsuarioServiceTest {
         AlterarRoleRequestDTO dto = new AlterarRoleRequestDTO();
         dto.setRoleNome("ROLE_ADMIN");
         when(usuarioRepository.findByEmail(superAdmin.getEmail())).thenReturn(Optional.of(superAdmin));
-        when(usuarioRepository.findById(superAdmin.getId())).thenReturn(Optional.of(superAdmin));
+        when(usuarioRepository.findByIdAndEmpresaId(superAdmin.getId(), 1L)).thenReturn(Optional.of(superAdmin));
 
         assertThatThrownBy(() -> usuarioService.alterarRole(superAdmin.getId(), dto, superAdmin.getEmail()))
             .isInstanceOf(ForbiddenException.class)
@@ -140,7 +142,7 @@ class UsuarioServiceTest {
         AlterarRoleRequestDTO dto = new AlterarRoleRequestDTO();
         dto.setRoleNome("ROLE_ADMIN");
         when(usuarioRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
-        when(usuarioRepository.findById(gestor.getId())).thenReturn(Optional.of(gestor));
+        when(usuarioRepository.findByIdAndEmpresaId(gestor.getId(), 1L)).thenReturn(Optional.of(gestor));
 
         assertThatThrownBy(() -> usuarioService.alterarRole(gestor.getId(), dto, admin.getEmail()))
             .isInstanceOf(ForbiddenException.class)
@@ -153,7 +155,7 @@ class UsuarioServiceTest {
         AlterarRoleRequestDTO dto = new AlterarRoleRequestDTO();
         dto.setRoleNome("ROLE_GESTOR");
         when(usuarioRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
-        when(usuarioRepository.findById(tecnico.getId())).thenReturn(Optional.of(tecnico));
+        when(usuarioRepository.findByIdAndEmpresaId(tecnico.getId(), 1L)).thenReturn(Optional.of(tecnico));
         Role gRole = new Role("ROLE_GESTOR");
         when(roleRepository.findByNome("ROLE_GESTOR")).thenReturn(Optional.of(gRole));
         when(usuarioRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -167,7 +169,7 @@ class UsuarioServiceTest {
     @DisplayName("desativar: ninguém pode desativar a si próprio")
     void desativar_selfNotAllowed() {
         when(usuarioRepository.findByEmail(admin.getEmail())).thenReturn(Optional.of(admin));
-        when(usuarioRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(usuarioRepository.findByIdAndEmpresaId(admin.getId(), 1L)).thenReturn(Optional.of(admin));
 
         assertThatThrownBy(() -> usuarioService.desativar(admin.getId(), admin.getEmail()))
             .isInstanceOf(ForbiddenException.class)
@@ -190,6 +192,7 @@ class UsuarioServiceTest {
         ReflectionTestUtils.setField(u, "id", id);
         u.setEmail(email);
         u.setAtivo(true);
+        u.setEmpresaId(1L);
         u.setRole(new Role(roleName));
         return u;
     }

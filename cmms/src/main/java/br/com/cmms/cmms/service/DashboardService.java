@@ -4,9 +4,9 @@ import br.com.cmms.cmms.dto.DashboardStatsDTO;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import br.com.cmms.cmms.repository.PecaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,40 +39,43 @@ public class DashboardService {
     private final MaquinaRepository maquinaRepository;
     private final ManutencaoRepository manutencaoRepository;
     private final PecaRepository pecaRepository;
+    private final TenantResolver tenant;
 
     public DashboardService(MaquinaRepository maquinaRepository,
                             ManutencaoRepository manutencaoRepository,
-                            PecaRepository pecaRepository) {
+                            PecaRepository pecaRepository,
+                            TenantResolver tenant) {
         this.maquinaRepository = maquinaRepository;
         this.manutencaoRepository = manutencaoRepository;
         this.pecaRepository = pecaRepository;
+        this.tenant = tenant;
     }
 
-    @Cacheable("dashboard-stats")
     @Transactional(readOnly = true)
     public DashboardStatsDTO getStats() {
         log.debug("Computing dashboard stats");
 
+        Long empresaId = tenant.requireEmpresaId();
         LocalDate hoje = LocalDate.now();
         LocalDate sixMonthsAgo = hoje.minusMonths(MONTH_WINDOW - 1L).withDayOfMonth(1);
 
         // ── Machine status counts (single GROUP BY query) ──
-        Map<String, Long> statusCounts = toCountMap(maquinaRepository.countGroupByStatus());
+        Map<String, Long> statusCounts = toCountMap(maquinaRepository.countGroupByStatus(empresaId));
         long maquinasAtivas        = statusCounts.getOrDefault("ATIVO", 0L);
         long maquinasInativas      = statusCounts.getOrDefault("INATIVO", 0L);
         long maquinasEmManutencao  = statusCounts.getOrDefault("EM_MANUTENCAO", 0L);
         long totalMaquinas         = statusCounts.values().stream().mapToLong(Long::longValue).sum();
 
         // ── Maintenance type counts (single GROUP BY query) ──
-        Map<String, Long> tipoCounts = toCountMap(manutencaoRepository.countGroupByTipo());
+        Map<String, Long> tipoCounts = toCountMap(manutencaoRepository.countGroupByTipo(empresaId));
         long manutencoesPreventivas = tipoCounts.getOrDefault("PREVENTIVA", 0L);
         long manutencoesCorretivas  = tipoCounts.getOrDefault("CORRETIVA",  0L);
         long totalManutencoes       = tipoCounts.values().stream().mapToLong(Long::longValue).sum();
 
-        long totalPecas = pecaRepository.count();
+        long totalPecas = pecaRepository.countByEmpresaId(empresaId);
 
         // ── Overdue preventives (database returns only candidates with interval > 0) ──
-        List<PreventiveRow> preventiveCandidates = maquinaRepository.findPreventiveCandidates().stream()
+        List<PreventiveRow> preventiveCandidates = maquinaRepository.findPreventiveCandidates(empresaId).stream()
             .map(PreventiveRow::from)
             .toList();
         long manutencoesVencidas = preventiveCandidates.stream()
@@ -83,14 +86,14 @@ public class DashboardService {
         double disponibilidade = totalMaquinas > 0
             ? Math.round(maquinasAtivas * 1000.0 / totalMaquinas) / 10.0
             : 0;
-        double mtbfDias = Math.round(computeMtbf() * 10) / 10.0;
+        double mtbfDias = Math.round(computeMtbf(empresaId) * 10) / 10.0;
 
         return new DashboardStatsDTO(
             totalMaquinas, totalManutencoes, totalPecas,
             maquinasAtivas, maquinasInativas, maquinasEmManutencao,
             manutencoesPreventivas, manutencoesCorretivas, manutencoesVencidas,
             disponibilidade, mtbfDias,
-            computeMonthlyCounts(hoje, sixMonthsAgo),
+            computeMonthlyCounts(hoje, sixMonthsAgo, empresaId),
             computeAlerts(preventiveCandidates, hoje)
         );
     }
@@ -107,8 +110,8 @@ public class DashboardService {
         return out;
     }
 
-    private double computeMtbf() {
-        List<Object[]> rows = manutencaoRepository.findCorrectiveDatesPerMachine();
+    private double computeMtbf(Long empresaId) {
+        List<Object[]> rows = manutencaoRepository.findCorrectiveDatesPerMachine(empresaId);
         if (rows.isEmpty()) return 0.0;
 
         // The query already orders rows by (machine_id, date), so we can scan
@@ -129,10 +132,10 @@ public class DashboardService {
             : intervals.stream().mapToLong(Long::longValue).average().orElse(0.0);
     }
 
-    private List<DashboardStatsDTO.MonthlyCount> computeMonthlyCounts(LocalDate hoje, LocalDate start) {
+    private List<DashboardStatsDTO.MonthlyCount> computeMonthlyCounts(LocalDate hoje, LocalDate start, Long empresaId) {
         // Map from (year * 100 + month) → count, populated from a single GROUP BY query.
         TreeMap<Integer, Long> aggregated = new TreeMap<>();
-        for (Object[] row : manutencaoRepository.monthlyCountsSince(start)) {
+        for (Object[] row : manutencaoRepository.monthlyCountsSince(start, empresaId)) {
             int year  = ((Number) row[0]).intValue();
             int month = ((Number) row[1]).intValue();
             long count = ((Number) row[2]).longValue();

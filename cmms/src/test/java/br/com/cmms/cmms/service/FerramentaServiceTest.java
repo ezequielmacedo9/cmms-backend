@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.FerramentaResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Ferramenta;
 import br.com.cmms.cmms.repository.FerramentaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,12 +34,14 @@ import static org.mockito.Mockito.when;
 class FerramentaServiceTest {
 
     @Mock FerramentaRepository ferramentaRepository;
+    @Mock TenantResolver tenant;
     @InjectMocks FerramentaService ferramentaService;
 
     private Ferramenta ferramenta;
 
     @BeforeEach
     void setUp() {
+        lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
         ferramenta = new Ferramenta();
         ReflectionTestUtils.setField(ferramenta, "id", 3L);
         ferramenta.setNome("Torquímetro 1/2''");
@@ -72,19 +76,19 @@ class FerramentaServiceTest {
     @DisplayName("listar(q, Pageable): normaliza string em branco para null")
     void listar_paged_normalizes() {
         var p = PageRequest.of(0, 20);
-        when(ferramentaRepository.search(eq(null), eq(p)))
+        when(ferramentaRepository.search(eq(null), eq(1L), eq(p)))
             .thenReturn(new PageImpl<>(List.of(ferramenta), p, 1));
 
         var page = ferramentaService.listar("   ", p);
 
         assertThat(page.getTotalElements()).isEqualTo(1);
-        verify(ferramentaRepository).search(null, p);
+        verify(ferramentaRepository).search(null, 1L, p);
     }
 
     @Test
     @DisplayName("buscarPorId: 404 quando ausente")
     void buscarPorId_notFound() {
-        when(ferramentaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(ferramentaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> ferramentaService.buscarPorId(99L))
             .isInstanceOf(NotFoundException.class);
     }
@@ -92,7 +96,7 @@ class FerramentaServiceTest {
     @Test
     @DisplayName("atualizar: aplica DTO e salva")
     void atualizar_happy() {
-        when(ferramentaRepository.findById(3L)).thenReturn(Optional.of(ferramenta));
+        when(ferramentaRepository.findByIdAndEmpresaId(3L, 1L)).thenReturn(Optional.of(ferramenta));
         when(ferramentaRepository.save(any(Ferramenta.class))).thenAnswer(i -> i.getArgument(0));
 
         var dto = new FerramentaRequestDTO("Renomeada", "NEW-CODE", "EM_USO",
@@ -108,7 +112,7 @@ class FerramentaServiceTest {
     @Test
     @DisplayName("atualizar: 404 quando id nao existe")
     void atualizar_notFound() {
-        when(ferramentaRepository.findById(404L)).thenReturn(Optional.empty());
+        when(ferramentaRepository.findByIdAndEmpresaId(404L, 1L)).thenReturn(Optional.empty());
         var dto = new FerramentaRequestDTO("X", null, null, null, null, null);
 
         assertThatThrownBy(() -> ferramentaService.atualizar(404L, dto))
@@ -117,19 +121,19 @@ class FerramentaServiceTest {
     }
 
     @Test
-    @DisplayName("deletar: HARD delete (Ferramenta nao tem soft delete)")
+    @DisplayName("deletar: HARD delete (Ferramenta nao tem soft delete), escopado por empresa")
     void deletar_happy() {
-        when(ferramentaRepository.existsById(3L)).thenReturn(true);
+        when(ferramentaRepository.findByIdAndEmpresaId(3L, 1L)).thenReturn(Optional.of(ferramenta));
         ferramentaService.deletar(3L);
-        verify(ferramentaRepository).deleteById(3L);
+        verify(ferramentaRepository).delete(ferramenta);
     }
 
     @Test
     @DisplayName("deletar: 404 quando ausente")
     void deletar_notFound() {
-        when(ferramentaRepository.existsById(99L)).thenReturn(false);
+        when(ferramentaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> ferramentaService.deletar(99L))
             .isInstanceOf(NotFoundException.class);
-        verify(ferramentaRepository, never()).deleteById(99L);
+        verify(ferramentaRepository, never()).delete(any());
     }
 }

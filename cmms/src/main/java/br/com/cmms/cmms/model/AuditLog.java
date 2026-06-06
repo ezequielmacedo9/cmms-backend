@@ -20,6 +20,10 @@ public class AuditLog {
     @Column(name = "user_id")
     private Long userId;
 
+    /** Tenant owner. Null for system/auth events without a resolved empresa. */
+    @Column(name = "empresa_id")
+    private Long empresaId;
+
     @Column(length = 100, nullable = false)
     private String acao;
 
@@ -42,13 +46,16 @@ public class AuditLog {
     protected void onCreate() { if (timestamp == null) timestamp = LocalDateTime.now(); }
 
     public AuditLog() {}
-    public AuditLog(String userEmail, Long userId, String acao, String recurso, Long recursoId, String detalhes, String ip) {
+    public AuditLog(Long empresaId, String userEmail, Long userId, String acao, String recurso, Long recursoId, String detalhes, String ip) {
+        this.empresaId = empresaId;
         this.userEmail = userEmail; this.userId = userId;
         this.acao = acao; this.recurso = recurso; this.recursoId = recursoId;
         this.detalhes = detalhes; this.ip = ip;
     }
 
     public Long getId() { return id; }
+    public Long getEmpresaId() { return empresaId; }
+    public void setEmpresaId(Long empresaId) { this.empresaId = empresaId; }
     public String getUserEmail() { return userEmail; }
     public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
     public Long getUserId() { return userId; }

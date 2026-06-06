@@ -101,7 +101,7 @@ public class AuthService {
             String accessToken  = jwtService.gerarToken(u);
             String refreshToken = refreshTokenService.criarRefreshToken(u).getToken();
 
-            audit.log(u.getEmail(), u.getId(), "LOGIN", "AUTH", null,
+            audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN", "AUTH", null,
                 "Login bem-sucedido", AuditService.getClientIp(request));
 
             return buildResponse(u, accessToken, refreshToken);
@@ -142,7 +142,7 @@ public class AuthService {
     public void logout(Usuario u, HttpServletRequest request) {
         if (u == null) return;
         refreshTokenService.revogarTodos(u);
-        audit.log(u.getEmail(), u.getId(), "LOGOUT", "AUTH", null,
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGOUT", "AUTH", null,
             "Logout / refresh tokens revogados", AuditService.getClientIp(request));
     }
 
@@ -161,12 +161,12 @@ public class AuthService {
         }
         usuarioRepo.save(u);
         String ip = AuditService.getClientIp(request);
-        audit.log(u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
             "Tentativa " + attempts, ip);
         if (lockedNow) {
             // Separate event so security dashboards can alert on lockouts
             // without trawling failed-login noise.
-            audit.log(u.getEmail(), u.getId(), "ACCOUNT_LOCKED", "AUTH", null,
+            audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "ACCOUNT_LOCKED", "AUTH", null,
                 "Conta bloqueada após " + attempts + " tentativas", ip);
         }
     }

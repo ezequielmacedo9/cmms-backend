@@ -4,8 +4,10 @@ import br.com.cmms.cmms.security.JwtService;
 import br.com.cmms.cmms.dto.TokenResponseDTO;
 import br.com.cmms.cmms.exception.UnauthorizedException;
 import br.com.cmms.cmms.exception.ValidationException;
+import br.com.cmms.cmms.model.Empresa;
 import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
+import br.com.cmms.cmms.repository.EmpresaRepository;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -32,10 +34,12 @@ public class GoogleAuthService {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleAuthService.class);
     private static final String GOOGLE_TOKEN_INFO = "https://oauth2.googleapis.com/tokeninfo?id_token=";
-    private static final String DEFAULT_ROLE = "ROLE_VISUALIZADOR";
+    /** A brand-new Google sign-in creates its own empresa and becomes its admin. */
+    private static final String NEW_USER_ROLE = "ROLE_ADMIN";
 
     private final UsuarioRepository usuarioRepo;
     private final RoleRepository roleRepo;
+    private final EmpresaRepository empresaRepo;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final AuditService audit;
@@ -45,6 +49,7 @@ public class GoogleAuthService {
 
     public GoogleAuthService(UsuarioRepository usuarioRepo,
                              RoleRepository roleRepo,
+                             EmpresaRepository empresaRepo,
                              JwtService jwtService,
                              RefreshTokenService refreshTokenService,
                              AuditService audit,
@@ -53,6 +58,7 @@ public class GoogleAuthService {
                              PasswordEncoder passwordEncoder) {
         this.usuarioRepo = usuarioRepo;
         this.roleRepo = roleRepo;
+        this.empresaRepo = empresaRepo;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.audit = audit;
@@ -100,7 +106,7 @@ public class GoogleAuthService {
         u.setUltimoLogin(LocalDateTime.now());
         usuarioRepo.save(u);
 
-        audit.log(u.getEmail(), u.getId(), "LOGIN_GOOGLE", "AUTH", null,
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_GOOGLE", "AUTH", null,
             "Login via Google", AuditService.getClientIp(request));
 
         String accessToken  = jwtService.gerarToken(u);
@@ -123,8 +129,14 @@ public class GoogleAuthService {
             }
             return existing;
         }
-        Role role = roleRepo.findByNome(DEFAULT_ROLE)
-            .orElseThrow(() -> new IllegalStateException("Required role missing: " + DEFAULT_ROLE));
+        Role role = roleRepo.findByNome(NEW_USER_ROLE)
+            .orElseThrow(() -> new IllegalStateException("Required role missing: " + NEW_USER_ROLE));
+        // A new Google sign-in bootstraps its own tenant so the user has an
+        // isolated workspace from the first request.
+        String nomeEmpresa = (googleNome != null && !googleNome.isBlank())
+            ? "Empresa de " + googleNome : "Minha Empresa";
+        Empresa empresa = empresaRepo.save(new Empresa(nomeEmpresa));
+
         Usuario novo = new Usuario();
         novo.setEmail(googleEmail);
         novo.setNome(googleNome);
@@ -132,6 +144,7 @@ public class GoogleAuthService {
         // Random unguessable bcrypt hash — user never logs in with email/password here.
         novo.setSenha(passwordEncoder.encode(UUID.randomUUID().toString()));
         novo.setRole(role);
+        novo.setEmpresaId(empresa.getId());
         return usuarioRepo.save(novo);
     }
 }

@@ -2,7 +2,6 @@ package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.dto.DashboardStatsDTO;
 import br.com.cmms.cmms.dto.NotificationDTO;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +33,6 @@ public class NotificationService {
         this.dashboardService = dashboardService;
     }
 
-    @Cacheable("notifications")
     @Transactional(readOnly = true)
     public List<NotificationDTO> currentForUser() {
         DashboardStatsDTO stats = dashboardService.getStats();

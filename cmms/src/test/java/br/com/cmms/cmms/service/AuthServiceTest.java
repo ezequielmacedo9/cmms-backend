@@ -88,7 +88,7 @@ class AuthServiceTest {
             .isInstanceOf(UnauthorizedException.class)
             .extracting("errorCode").isEqualTo("BAD_CREDENTIALS");
 
-        verify(audit, never()).log(anyString(), any(), anyString(), anyString(), any(), anyString(), anyString());
+        verify(audit, never()).log(any(), anyString(), any(), anyString(), anyString(), any(), anyString(), anyString());
         verify(jwtService, never()).gerarToken(any());
     }
 
@@ -131,7 +131,7 @@ class AuthServiceTest {
         assertThat(saved.getValue().getLockedUntil()).isNull();
         assertThat(saved.getValue().getUltimoLogin()).isNotNull();
 
-        verify(audit).log(eq(activeUser.getEmail()), any(), eq("LOGIN"),
+        verify(audit).log(any(), eq(activeUser.getEmail()), any(), eq("LOGIN"),
                           eq("AUTH"), any(), anyString(), anyString());
     }
 
@@ -151,7 +151,7 @@ class AuthServiceTest {
         assertThat(saved.getValue().getFailedLoginAttempts()).isEqualTo(1);
         assertThat(saved.getValue().getLockedUntil()).isNull();
 
-        verify(audit).log(eq(activeUser.getEmail()), any(), eq("LOGIN_FAILED"),
+        verify(audit).log(any(), eq(activeUser.getEmail()), any(), eq("LOGIN_FAILED"),
                           eq("AUTH"), any(), anyString(), anyString());
     }
 
@@ -194,7 +194,7 @@ class AuthServiceTest {
         authService.logout(activeUser, request);
 
         verify(refreshTokenService).revogarTodos(activeUser);
-        verify(audit).log(eq(activeUser.getEmail()), any(), eq("LOGOUT"),
+        verify(audit).log(any(), eq(activeUser.getEmail()), any(), eq("LOGOUT"),
                           eq("AUTH"), any(), anyString(), anyString());
     }
 

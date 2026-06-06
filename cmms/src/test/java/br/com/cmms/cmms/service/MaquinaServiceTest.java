@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,12 +51,14 @@ import static org.mockito.Mockito.when;
 class MaquinaServiceTest {
 
     @Mock MaquinaRepository maquinaRepository;
+    @Mock TenantResolver tenant;
     @InjectMocks MaquinaService maquinaService;
 
     private Maquina maquina;
 
     @BeforeEach
     void setUp() {
+        lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
         maquina = new Maquina();
         ReflectionTestUtils.setField(maquina, "id", 7L);
         maquina.setNome("Torno CNC 02");
@@ -89,31 +93,31 @@ class MaquinaServiceTest {
     @DisplayName("listar(q, status, Pageable): normaliza strings vazias para null e mapeia Page")
     void listar_normalizesAndMaps() {
         Pageable p = PageRequest.of(0, 10);
-        when(maquinaRepository.search(eq(null), eq(null), eq(p)))
+        when(maquinaRepository.search(eq(null), eq(null), eq(1L), eq(p)))
             .thenReturn(new PageImpl<>(List.of(maquina), p, 1));
 
         Page<MaquinaResponseDTO> page = maquinaService.listar("  ", "", p);
 
         assertThat(page.getTotalElements()).isEqualTo(1);
         assertThat(page.getContent().get(0).nome()).isEqualTo("Torno CNC 02");
-        verify(maquinaRepository).search(null, null, p);
+        verify(maquinaRepository).search(null, null, 1L, p);
     }
 
     @Test
     @DisplayName("listar(q, status, Pageable): mantem strings nao-vazias")
     void listar_passesNonEmptyFilters() {
         Pageable p = PageRequest.of(0, 10);
-        when(maquinaRepository.search(eq("torno"), eq("ATIVO"), eq(p)))
+        when(maquinaRepository.search(eq("torno"), eq("ATIVO"), eq(1L), eq(p)))
             .thenReturn(new PageImpl<>(List.of(maquina), p, 1));
 
         maquinaService.listar("torno", "ATIVO", p);
-        verify(maquinaRepository).search("torno", "ATIVO", p);
+        verify(maquinaRepository).search("torno", "ATIVO", 1L, p);
     }
 
     @Test
     @DisplayName("buscarPorId: lanca NotFoundException com code MAQUINA_NOT_FOUND")
     void buscarPorId_notFound() {
-        when(maquinaRepository.findById(42L)).thenReturn(Optional.empty());
+        when(maquinaRepository.findByIdAndEmpresaId(42L, 1L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> maquinaService.buscarPorId(42L))
             .isInstanceOf(NotFoundException.class);
@@ -122,7 +126,7 @@ class MaquinaServiceTest {
     @Test
     @DisplayName("buscarPorId: happy retorna DTO completo")
     void buscarPorId_happy() {
-        when(maquinaRepository.findById(7L)).thenReturn(Optional.of(maquina));
+        when(maquinaRepository.findByIdAndEmpresaId(7L, 1L)).thenReturn(Optional.of(maquina));
         MaquinaResponseDTO out = maquinaService.buscarPorId(7L);
         assertThat(out.id()).isEqualTo(7L);
         assertThat(out.setor()).isEqualTo("Usinagem");
@@ -131,7 +135,7 @@ class MaquinaServiceTest {
     @Test
     @DisplayName("atualizar: 404 quando id nao existe")
     void atualizar_notFound() {
-        when(maquinaRepository.findById(42L)).thenReturn(Optional.empty());
+        when(maquinaRepository.findByIdAndEmpresaId(42L, 1L)).thenReturn(Optional.empty());
         var dto = new MaquinaRequestDTO("X", "Y", "ATIVO", "ALTA", 10, null);
 
         assertThatThrownBy(() -> maquinaService.atualizar(42L, dto))
@@ -142,7 +146,7 @@ class MaquinaServiceTest {
     @Test
     @DisplayName("atualizar: aplica DTO completo e salva")
     void atualizar_happy() {
-        when(maquinaRepository.findById(7L)).thenReturn(Optional.of(maquina));
+        when(maquinaRepository.findByIdAndEmpresaId(7L, 1L)).thenReturn(Optional.of(maquina));
         when(maquinaRepository.save(any(Maquina.class))).thenAnswer(i -> i.getArgument(0));
 
         var dto = new MaquinaRequestDTO("Renomeada", "Outro", "INATIVO",
@@ -160,7 +164,7 @@ class MaquinaServiceTest {
     @Test
     @DisplayName("deletar: SOFT delete — set deletedAt + save (nao chama deleteById)")
     void deletar_softDelete() {
-        when(maquinaRepository.findById(7L)).thenReturn(Optional.of(maquina));
+        when(maquinaRepository.findByIdAndEmpresaId(7L, 1L)).thenReturn(Optional.of(maquina));
 
         maquinaService.deletar(7L);
 
@@ -174,7 +178,7 @@ class MaquinaServiceTest {
     @Test
     @DisplayName("deletar: 404 quando id nao existe")
     void deletar_notFound() {
-        when(maquinaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(maquinaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> maquinaService.deletar(99L))
             .isInstanceOf(NotFoundException.class);
     }

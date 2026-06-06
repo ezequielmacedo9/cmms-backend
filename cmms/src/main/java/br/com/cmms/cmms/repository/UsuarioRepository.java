@@ -11,15 +11,21 @@ import java.util.Optional;
 
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
+    // Auth lookups are intentionally GLOBAL — email is unique across the whole
+    // platform, and the tenant is derived FROM the matched user at login.
     Optional<Usuario> findByEmail(String email);
 
     boolean existsByEmail(String email);
 
-    /** Non-paged variant — used by callers that genuinely need every user (rare). */
+    /** Tenant-scoped fetch by id — closes IDOR on user management. */
     @EntityGraph(attributePaths = "role")
-    List<Usuario> findAllByOrderByDataCriacaoDesc();
+    Optional<Usuario> findByIdAndEmpresaId(Long id, Long empresaId);
 
-    /** Paged listing, eagerly loading the role to avoid N+1 in the UI grid. */
+    /** Tenant-scoped non-paged listing. */
     @EntityGraph(attributePaths = "role")
-    Page<Usuario> findAllByOrderByDataCriacaoDesc(Pageable pageable);
+    List<Usuario> findByEmpresaIdOrderByDataCriacaoDesc(Long empresaId);
+
+    /** Tenant-scoped paged listing, eagerly loading the role to avoid N+1 in the UI grid. */
+    @EntityGraph(attributePaths = "role")
+    Page<Usuario> findByEmpresaIdOrderByDataCriacaoDesc(Long empresaId, Pageable pageable);
 }

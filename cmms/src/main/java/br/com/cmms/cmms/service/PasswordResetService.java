@@ -81,7 +81,7 @@ public class PasswordResetService {
         } catch (Exception e) {
             log.warn("Failed to send password reset email to {}: {}", u.getEmail(), e.getMessage());
         }
-        audit.log(u.getEmail(), u.getId(), "PASSWORD_RESET_REQUEST", "USUARIO", null,
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "PASSWORD_RESET_REQUEST", "USUARIO", null,
             "Solicitação de redefinição", AuditService.getClientIp(request));
     }
 
@@ -120,7 +120,7 @@ public class PasswordResetService {
         prt.setUsado(true);
         tokenRepo.save(prt);
 
-        audit.log(u.getEmail(), u.getId(), "PASSWORD_RESET", "USUARIO", u.getId(),
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "PASSWORD_RESET", "USUARIO", u.getId(),
             "Senha redefinida via token", AuditService.getClientIp(request));
     }
 

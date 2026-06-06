@@ -56,7 +56,7 @@ public class ProfileController {
         u.setCargo(req.cargo);
         u.setDepartamento(req.departamento);
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "PROFILE_UPDATE", "USUARIO", u.getId(), "Perfil atualizado", AuditService.getClientIp(request));
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "PROFILE_UPDATE", "USUARIO", u.getId(), "Perfil atualizado", AuditService.getClientIp(request));
         return ResponseEntity.ok(profileMap(u));
     }
 
@@ -97,7 +97,7 @@ public class ProfileController {
         }
         u.setSenha(passwordEncoder.encode(req.novaSenha));
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "PASSWORD_CHANGE", "USUARIO", u.getId(),
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "PASSWORD_CHANGE", "USUARIO", u.getId(),
             "Senha alterada", AuditService.getClientIp(request));
         return ResponseEntity.ok(Map.of("message", "Senha alterada com sucesso."));
     }

@@ -5,11 +5,9 @@ import br.com.cmms.cmms.dto.MaquinaResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,62 +17,54 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Machine CRUD, fully scoped to the caller's empresa. Every read/write
+ * resolves the tenant through {@link TenantResolver} so cross-tenant access
+ * is impossible — there is no code path that returns another empresa's rows.
+ */
 @Service
 public class MaquinaService {
 
     private static final Logger log = LoggerFactory.getLogger(MaquinaService.class);
 
     private final MaquinaRepository maquinaRepository;
+    private final TenantResolver tenant;
 
-    public MaquinaService(MaquinaRepository maquinaRepository) {
+    public MaquinaService(MaquinaRepository maquinaRepository, TenantResolver tenant) {
         this.maquinaRepository = maquinaRepository;
+        this.tenant = tenant;
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "maquinas",        allEntries = true),
-        @CacheEvict(value = "maquinas-page",   allEntries = true),
-        @CacheEvict(value = "dashboard-stats", allEntries = true)
-    })
     public MaquinaResponseDTO cadastrar(MaquinaRequestDTO dto) {
         Maquina m = new Maquina();
+        m.setEmpresaId(tenant.requireEmpresaId());
         applyDto(dto, m);
         log.info("Cadastrando máquina: {}", dto.nome());
         return toDTO(maquinaRepository.save(m));
     }
 
-    /**
-     * Paged listing with optional search and status filter. Cached on the
-     * exact tuple (query, status, page, size, sort).
-     */
-    @Cacheable(value = "maquinas-page",
-        key = "(#q ?: '') + '|' + (#status ?: '') + '|' + #pageable.pageNumber + '|' + #pageable.pageSize + '|' + #pageable.sort")
+    /** Paged listing with optional search and status filter, scoped to the empresa. */
     public Page<MaquinaResponseDTO> listar(String q, String status, Pageable pageable) {
         String normalizedQ      = (q == null      || q.isBlank())      ? null : q.trim();
         String normalizedStatus = (status == null || status.isBlank()) ? null : status.trim();
-        return maquinaRepository.search(normalizedQ, normalizedStatus, pageable).map(this::toDTO);
+        return maquinaRepository.search(normalizedQ, normalizedStatus, tenant.requireEmpresaId(), pageable)
+            .map(this::toDTO);
     }
 
-    /** Legacy non-paged listing — used by integrations that still expect a full list. */
-    @Cacheable("maquinas")
+    /** Legacy non-paged listing — scoped to the empresa. */
     public List<MaquinaResponseDTO> listar() {
-        return maquinaRepository.findAll().stream().map(this::toDTO).toList();
+        return maquinaRepository.findByEmpresaId(tenant.requireEmpresaId())
+            .stream().map(this::toDTO).toList();
     }
 
     public MaquinaResponseDTO buscarPorId(Long id) {
-        return toDTO(maquinaRepository.findById(id)
-            .orElseThrow(() -> NotFoundException.of("Máquina", id)));
+        return toDTO(findOwned(id));
     }
 
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "maquinas",        allEntries = true),
-        @CacheEvict(value = "maquinas-page",   allEntries = true),
-        @CacheEvict(value = "dashboard-stats", allEntries = true)
-    })
     public MaquinaResponseDTO atualizar(Long id, MaquinaRequestDTO dto) {
-        Maquina m = maquinaRepository.findById(id)
-            .orElseThrow(() -> NotFoundException.of("Máquina", id));
+        Maquina m = findOwned(id);
         applyDto(dto, m);
         log.info("Atualizando máquina id={}", id);
         return toDTO(maquinaRepository.save(m));
@@ -85,17 +75,17 @@ public class MaquinaService {
      * every subsequent query. Auditing keeps the row, allowing recovery.
      */
     @Transactional
-    @Caching(evict = {
-        @CacheEvict(value = "maquinas",        allEntries = true),
-        @CacheEvict(value = "maquinas-page",   allEntries = true),
-        @CacheEvict(value = "dashboard-stats", allEntries = true)
-    })
     public void deletar(Long id) {
-        Maquina m = maquinaRepository.findById(id)
-            .orElseThrow(() -> NotFoundException.of("Máquina", id));
+        Maquina m = findOwned(id);
         log.info("Soft-deleting máquina id={}", id);
         m.setDeletedAt(LocalDateTime.now());
         maquinaRepository.save(m);
+    }
+
+    /** Tenant-scoped fetch-or-404. Returning 404 (not 403) avoids leaking that the id exists elsewhere. */
+    private Maquina findOwned(Long id) {
+        return maquinaRepository.findByIdAndEmpresaId(id, tenant.requireEmpresaId())
+            .orElseThrow(() -> NotFoundException.of("Máquina", id));
     }
 
     private void applyDto(MaquinaRequestDTO dto, Maquina m) {

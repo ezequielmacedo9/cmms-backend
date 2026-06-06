@@ -10,68 +10,73 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * {@code @EntityGraph(attributePaths = "maquina")} forces Hibernate to fetch
  * the associated machine in the same query, eliminating the N+1 that hits
  * the API every time a list of maintenances is serialised to DTO.
+ *
+ * <p>Every read is scoped to the caller's empresa via {@code empresaId}.
  */
 public interface ManutencaoRepository extends JpaRepository<Manutencao, Long> {
 
-    @Override
+    /** Tenant-scoped fetch by id — closes IDOR on read/delete. */
     @EntityGraph(attributePaths = "maquina")
-    Page<Manutencao> findAll(Pageable pageable);
+    Optional<Manutencao> findByIdAndEmpresaId(Long id, Long empresaId);
 
-    @Override
+    /** Paged listing — ordering comes from the request Pageable (default dataManutencao DESC). */
     @EntityGraph(attributePaths = "maquina")
-    List<Manutencao> findAll();
+    Page<Manutencao> findByEmpresaId(Long empresaId, Pageable pageable);
 
+    /** Non-paged listing for reports / legacy callers. */
     @EntityGraph(attributePaths = "maquina")
-    Page<Manutencao> findByMaquinaIdOrderByDataManutencaoDesc(Long maquinaId, Pageable pageable);
-
-    /** Kept for the scheduler / non-paged callers. */
-    @EntityGraph(attributePaths = "maquina")
-    List<Manutencao> findByMaquinaIdOrderByDataManutencaoDesc(Long maquinaId);
+    List<Manutencao> findByEmpresaIdOrderByDataManutencaoDesc(Long empresaId);
 
     @EntityGraph(attributePaths = "maquina")
-    List<Manutencao> findByDataManutencaoBetween(LocalDate start, LocalDate end);
+    Page<Manutencao> findByMaquinaIdAndEmpresaIdOrderByDataManutencaoDesc(Long maquinaId, Long empresaId, Pageable pageable);
 
-    @Query("SELECT m FROM Manutencao m JOIN FETCH m.maquina WHERE m.tipo = :tipo ORDER BY m.maquina.id ASC, m.dataManutencao ASC")
-    List<Manutencao> findByTipoOrderByMaquinaAndDate(@Param("tipo") String tipo);
+    @EntityGraph(attributePaths = "maquina")
+    List<Manutencao> findByMaquinaIdAndEmpresaIdOrderByDataManutencaoDesc(Long maquinaId, Long empresaId);
 
-    /** Aggregate count by maintenance type. */
-    @Query("SELECT m.tipo AS tipo, COUNT(m) AS total FROM Manutencao m GROUP BY m.tipo")
-    List<Object[]> countGroupByTipo();
+    /** Aggregate count by maintenance type for one empresa. */
+    @Query("""
+        SELECT m.tipo AS tipo, COUNT(m) AS total
+        FROM Manutencao m
+        WHERE m.empresaId = :empresaId
+        GROUP BY m.tipo
+    """)
+    List<Object[]> countGroupByTipo(@Param("empresaId") Long empresaId);
 
     /**
-     * Lightweight rows for MTBF computation: only the columns we need
-     * (machine id + maintenance date) for corrective maintenances. Avoids
-     * loading entire Manutencao + Maquina graphs.
+     * Lightweight rows for MTBF computation (corrective maintenances), scoped
+     * to one empresa: {@code [machineId, date]} ordered for a linear scan.
      */
     @Query("""
         SELECT m.maquina.id, m.dataManutencao
         FROM Manutencao m
-        WHERE m.tipo = 'CORRETIVA'
+        WHERE m.empresaId = :empresaId
+          AND m.tipo = 'CORRETIVA'
           AND m.dataManutencao IS NOT NULL
           AND m.maquina IS NOT NULL
         ORDER BY m.maquina.id, m.dataManutencao
     """)
-    List<Object[]> findCorrectiveDatesPerMachine();
+    List<Object[]> findCorrectiveDatesPerMachine(@Param("empresaId") Long empresaId);
 
     /**
-     * Monthly histogram of maintenance counts since the given start date.
-     * Returns rows of {@code [year, month, count]}. PostgreSQL and H2 both
-     * support {@code EXTRACT(YEAR/MONTH FROM ...)} for JPA's temporal types.
+     * Monthly histogram of maintenance counts since the given start date for
+     * one empresa. Returns rows of {@code [year, month, count]}.
      */
     @Query("""
         SELECT EXTRACT(YEAR  FROM m.dataManutencao) AS year,
                EXTRACT(MONTH FROM m.dataManutencao) AS month,
                COUNT(m) AS total
         FROM Manutencao m
-        WHERE m.dataManutencao IS NOT NULL
+        WHERE m.empresaId = :empresaId
+          AND m.dataManutencao IS NOT NULL
           AND m.dataManutencao >= :start
         GROUP BY EXTRACT(YEAR FROM m.dataManutencao),
                  EXTRACT(MONTH FROM m.dataManutencao)
     """)
-    List<Object[]> monthlyCountsSince(@Param("start") LocalDate start);
+    List<Object[]> monthlyCountsSince(@Param("start") LocalDate start, @Param("empresaId") Long empresaId);
 }

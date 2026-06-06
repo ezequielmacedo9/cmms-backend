@@ -5,6 +5,7 @@ import br.com.cmms.cmms.dto.PecaResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Peca;
 import br.com.cmms.cmms.repository.PecaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.when;
 class PecaServiceTest {
 
     @Mock PecaRepository pecaRepository;
+    @Mock TenantResolver tenant;
     @InjectMocks PecaService pecaService;
 
     private Peca peca;
@@ -41,6 +44,7 @@ class PecaServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
         peca = new Peca();
         ReflectionTestUtils.setField(peca, "id", 5L);
         peca.setNome("Rolamento 6204");
@@ -78,19 +82,19 @@ class PecaServiceTest {
     @DisplayName("listar(q, Pageable): normaliza string vazia para null")
     void listar_paged_normalizes() {
         Pageable p = PageRequest.of(0, 20);
-        when(pecaRepository.search(eq(null), eq(p)))
+        when(pecaRepository.search(eq(null), eq(1L), eq(p)))
             .thenReturn(new PageImpl<>(List.of(peca), p, 1));
 
         Page<PecaResponseDTO> result = pecaService.listar("  ", p);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        verify(pecaRepository).search(null, p);
+        verify(pecaRepository).search(null, 1L, p);
     }
 
     @Test
     @DisplayName("buscarPorId: 404 quando ausente")
     void buscarPorId_notFound() {
-        when(pecaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(pecaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> pecaService.buscarPorId(99L))
             .isInstanceOf(NotFoundException.class);
     }
@@ -98,7 +102,7 @@ class PecaServiceTest {
     @Test
     @DisplayName("atualizar: aplica DTO e salva")
     void atualizar_happy() {
-        when(pecaRepository.findById(5L)).thenReturn(Optional.of(peca));
+        when(pecaRepository.findByIdAndEmpresaId(5L, 1L)).thenReturn(Optional.of(peca));
         when(pecaRepository.save(any(Peca.class))).thenAnswer(i -> i.getArgument(0));
 
         sampleDto.setQuantidadeEmEstoque(100);
@@ -110,24 +114,24 @@ class PecaServiceTest {
     @Test
     @DisplayName("atualizar: 404 quando id nao existe")
     void atualizar_notFound() {
-        when(pecaRepository.findById(404L)).thenReturn(Optional.empty());
+        when(pecaRepository.findByIdAndEmpresaId(404L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> pecaService.atualizar(404L, sampleDto))
             .isInstanceOf(NotFoundException.class);
         verify(pecaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("deletar: HARD delete (Peca nao tem soft delete)")
+    @DisplayName("deletar: HARD delete (Peca nao tem soft delete), escopado por empresa")
     void deletar_hardDelete() {
-        when(pecaRepository.existsById(5L)).thenReturn(true);
+        when(pecaRepository.findByIdAndEmpresaId(5L, 1L)).thenReturn(Optional.of(peca));
         pecaService.deletar(5L);
-        verify(pecaRepository).deleteById(5L);
+        verify(pecaRepository).delete(peca);
     }
 
     @Test
     @DisplayName("deletar: 404 quando ausente")
     void deletar_notFound() {
-        when(pecaRepository.existsById(99L)).thenReturn(false);
+        when(pecaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> pecaService.deletar(99L))
             .isInstanceOf(NotFoundException.class);
     }

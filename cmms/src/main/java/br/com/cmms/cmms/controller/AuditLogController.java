@@ -4,6 +4,7 @@ import br.com.cmms.cmms.dto.AuditLogResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
 import br.com.cmms.cmms.model.AuditLog;
 import br.com.cmms.cmms.repository.AuditLogRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,9 +27,11 @@ public class AuditLogController {
     private static final int DEFAULT_PAGE_SIZE = 30;
 
     private final AuditLogRepository repo;
+    private final TenantResolver tenant;
 
-    public AuditLogController(AuditLogRepository repo) {
+    public AuditLogController(AuditLogRepository repo, TenantResolver tenant) {
         this.repo = repo;
+        this.tenant = tenant;
     }
 
     @GetMapping
@@ -44,10 +47,11 @@ public class AuditLogController {
 
         int boundedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         PageRequest pageable = PageRequest.of(Math.max(page, 0), boundedSize);
+        Long empresaId = tenant.requireEmpresaId();
 
         Page<AuditLog> result = (q != null && !q.isBlank())
-            ? repo.findByUserEmailContainingIgnoreCaseOrderByTimestampDesc(q, pageable)
-            : repo.findAllByOrderByTimestampDesc(pageable);
+            ? repo.findByEmpresaIdAndUserEmailContainingIgnoreCaseOrderByTimestampDesc(empresaId, q, pageable)
+            : repo.findByEmpresaIdOrderByTimestampDesc(empresaId, pageable);
 
         return ResponseEntity.ok(PagedResponseDTO.of(result, AuditLogResponseDTO::from));
     }

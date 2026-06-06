@@ -4,6 +4,7 @@ import br.com.cmms.cmms.dto.DashboardStatsDTO;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import br.com.cmms.cmms.repository.PecaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
@@ -31,18 +33,20 @@ class DashboardServiceTest {
     @Mock MaquinaRepository maquinaRepository;
     @Mock ManutencaoRepository manutencaoRepository;
     @Mock PecaRepository pecaRepository;
+    @Mock TenantResolver tenant;
 
     @InjectMocks DashboardService dashboardService;
 
     @BeforeEach
     void setUp() {
         // Sensible defaults — individual tests override when needed.
-        lenient().when(maquinaRepository.countGroupByStatus()).thenReturn(List.of());
-        lenient().when(manutencaoRepository.countGroupByTipo()).thenReturn(List.of());
-        lenient().when(maquinaRepository.findPreventiveCandidates()).thenReturn(List.of());
-        lenient().when(manutencaoRepository.findCorrectiveDatesPerMachine()).thenReturn(List.of());
-        lenient().when(manutencaoRepository.monthlyCountsSince(any())).thenReturn(List.of());
-        lenient().when(pecaRepository.count()).thenReturn(0L);
+        lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
+        lenient().when(maquinaRepository.countGroupByStatus(anyLong())).thenReturn(List.of());
+        lenient().when(manutencaoRepository.countGroupByTipo(anyLong())).thenReturn(List.of());
+        lenient().when(maquinaRepository.findPreventiveCandidates(anyLong())).thenReturn(List.of());
+        lenient().when(manutencaoRepository.findCorrectiveDatesPerMachine(anyLong())).thenReturn(List.of());
+        lenient().when(manutencaoRepository.monthlyCountsSince(any(), anyLong())).thenReturn(List.of());
+        lenient().when(pecaRepository.countByEmpresaId(anyLong())).thenReturn(0L);
     }
 
     @Test
@@ -62,16 +66,16 @@ class DashboardServiceTest {
     @Test
     @DisplayName("getStats: agrega corretamente status e tipos vindos dos repositórios")
     void getStats_aggregatesStatusAndTipo() {
-        when(maquinaRepository.countGroupByStatus()).thenReturn(List.of(
+        when(maquinaRepository.countGroupByStatus(1L)).thenReturn(List.of(
             row("ATIVO", 8L),
             row("INATIVO", 1L),
             row("EM_MANUTENCAO", 1L)
         ));
-        when(manutencaoRepository.countGroupByTipo()).thenReturn(List.of(
+        when(manutencaoRepository.countGroupByTipo(1L)).thenReturn(List.of(
             row("PREVENTIVA", 12L),
             row("CORRETIVA", 3L)
         ));
-        when(pecaRepository.count()).thenReturn(42L);
+        when(pecaRepository.countByEmpresaId(1L)).thenReturn(42L);
 
         DashboardStatsDTO out = dashboardService.getStats();
 
@@ -95,7 +99,7 @@ class DashboardServiceTest {
         // Machine 1: 3 corretivas — intervalos de 10 e 20 dias  → média 15
         // Machine 2: 2 corretivas — intervalo de 30 dias       → 30
         // Esperado: média de [10, 20, 30] = 20 dias
-        when(manutencaoRepository.findCorrectiveDatesPerMachine()).thenReturn(List.of(
+        when(manutencaoRepository.findCorrectiveDatesPerMachine(1L)).thenReturn(List.of(
             new Object[]{ 1L, LocalDate.of(2026, 1, 1) },
             new Object[]{ 1L, LocalDate.of(2026, 1, 11) },
             new Object[]{ 1L, LocalDate.of(2026, 1, 31) },
@@ -122,7 +126,7 @@ class DashboardServiceTest {
                 hoje.minusDays(10 + i), 10
             });
         }
-        when(maquinaRepository.findPreventiveCandidates()).thenReturn(rows);
+        when(maquinaRepository.findPreventiveCandidates(1L)).thenReturn(rows);
 
         DashboardStatsDTO out = dashboardService.getStats();
 

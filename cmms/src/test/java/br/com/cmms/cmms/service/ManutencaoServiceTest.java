@@ -7,6 +7,7 @@ import br.com.cmms.cmms.model.Manutencao;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +38,7 @@ class ManutencaoServiceTest {
 
     @Mock ManutencaoRepository manutencaoRepository;
     @Mock MaquinaRepository    maquinaRepository;
+    @Mock TenantResolver       tenant;
     @InjectMocks ManutencaoService manutencaoService;
 
     private Maquina maquina;
@@ -43,6 +46,7 @@ class ManutencaoServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
         maquina = new Maquina();
         ReflectionTestUtils.setField(maquina, "id", 1L);
         maquina.setNome("Torno");
@@ -62,7 +66,7 @@ class ManutencaoServiceTest {
     @Test
     @DisplayName("cadastrar: 404 quando maquina nao existe")
     void cadastrar_maquinaNotFound() {
-        when(maquinaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(maquinaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         var dto = new ManutencaoRequestDTO("PREVENTIVA", "Ana", "x", null, null, null);
 
         assertThatThrownBy(() -> manutencaoService.cadastrar(dto, 99L))
@@ -73,7 +77,7 @@ class ManutencaoServiceTest {
     @Test
     @DisplayName("cadastrar: defaults aplicados quando DTO omite prioridade/status/data")
     void cadastrar_appliesDefaults() {
-        when(maquinaRepository.findById(1L)).thenReturn(Optional.of(maquina));
+        when(maquinaRepository.findByIdAndEmpresaId(1L, 1L)).thenReturn(Optional.of(maquina));
         when(manutencaoRepository.save(any(Manutencao.class))).thenAnswer(i -> {
             Manutencao m = i.getArgument(0);
             ReflectionTestUtils.setField(m, "id", 100L);
@@ -96,7 +100,7 @@ class ManutencaoServiceTest {
     @DisplayName("listar(Pageable): mapeia Page<Manutencao> para Page<DTO>")
     void listar_paged() {
         var p = PageRequest.of(0, 5);
-        when(manutencaoRepository.findAll(p))
+        when(manutencaoRepository.findByEmpresaId(1L, p))
             .thenReturn(new PageImpl<>(List.of(manutencao), p, 1));
 
         var page = manutencaoService.listar(p);
@@ -109,7 +113,7 @@ class ManutencaoServiceTest {
     @Test
     @DisplayName("buscarPorId: 404 quando ausente")
     void buscarPorId_notFound() {
-        when(manutencaoRepository.findById(404L)).thenReturn(Optional.empty());
+        when(manutencaoRepository.findByIdAndEmpresaId(404L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> manutencaoService.buscarPorId(404L))
             .isInstanceOf(NotFoundException.class);
     }
@@ -117,7 +121,7 @@ class ManutencaoServiceTest {
     @Test
     @DisplayName("deletar: SOFT delete (deleted_at preenchido + save)")
     void deletar_softDelete() {
-        when(manutencaoRepository.findById(10L)).thenReturn(Optional.of(manutencao));
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
 
         manutencaoService.deletar(10L);
 
@@ -131,7 +135,7 @@ class ManutencaoServiceTest {
     @Test
     @DisplayName("deletar: 404 quando ausente, sem tocar no save")
     void deletar_notFound() {
-        when(manutencaoRepository.findById(99L)).thenReturn(Optional.empty());
+        when(manutencaoRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> manutencaoService.deletar(99L))
             .isInstanceOf(NotFoundException.class);
         verify(manutencaoRepository, never()).save(any());

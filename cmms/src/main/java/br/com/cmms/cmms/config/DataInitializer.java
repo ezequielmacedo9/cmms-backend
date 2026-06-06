@@ -1,7 +1,9 @@
 package br.com.cmms.cmms.config;
 
+import br.com.cmms.cmms.model.Empresa;
 import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
+import br.com.cmms.cmms.repository.EmpresaRepository;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
 import org.slf4j.Logger;
@@ -55,6 +57,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UsuarioRepository usuarioRepository;
     private final RoleRepository roleRepository;
+    private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
     private final Environment env;
 
@@ -69,10 +72,12 @@ public class DataInitializer implements CommandLineRunner {
 
     public DataInitializer(UsuarioRepository usuarioRepository,
                            RoleRepository roleRepository,
+                           EmpresaRepository empresaRepository,
                            PasswordEncoder passwordEncoder,
                            Environment env) {
         this.usuarioRepository = usuarioRepository;
         this.roleRepository = roleRepository;
+        this.empresaRepository = empresaRepository;
         this.passwordEncoder = passwordEncoder;
         this.env = env;
     }
@@ -80,12 +85,19 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         BASE_ROLES.forEach(this::ensureRole);
+        Empresa empresaPadrao = ensureEmpresaPadrao();
 
         if (isProd()) {
-            bootstrapProd();
+            bootstrapProd(empresaPadrao);
         } else {
-            bootstrapDev();
+            bootstrapDev(empresaPadrao);
         }
+    }
+
+    /** Reuses the first existing empresa (e.g. the one backfilled by Flyway) or creates a default. */
+    private Empresa ensureEmpresaPadrao() {
+        return empresaRepository.findAll().stream().findFirst()
+            .orElseGet(() -> empresaRepository.save(new Empresa("Empresa Demo")));
     }
 
     private boolean isProd() {
@@ -97,12 +109,12 @@ public class DataInitializer implements CommandLineRunner {
      * can be used immediately. Passwords are configurable via
      * {@code app.bootstrap.dev-password} and default to {@code dev123!}.
      */
-    private void bootstrapDev() {
+    private void bootstrapDev(Empresa empresa) {
         Role superAdminRole = requireRole("ROLE_SUPER_ADMIN");
         Role adminRole      = requireRole("ROLE_ADMIN");
 
-        ensureUsuario("superadmin@email.com", "Super Administrador", devPassword, superAdminRole);
-        ensureUsuario("admin@email.com",      "Administrador",       devPassword, adminRole);
+        ensureUsuario("superadmin@email.com", "Super Administrador", devPassword, superAdminRole, empresa.getId());
+        ensureUsuario("admin@email.com",      "Administrador",       devPassword, adminRole, empresa.getId());
         log.warn("DEV bootstrap users created. Do NOT use these credentials outside local development.");
     }
 
@@ -112,7 +124,7 @@ public class DataInitializer implements CommandLineRunner {
      * password is too weak; this protects against accidentally provisioning
      * a trivial password in production.
      */
-    private void bootstrapProd() {
+    private void bootstrapProd(Empresa empresa) {
         if (isBlank(superAdminEmail) || isBlank(superAdminPassword)) {
             log.info("Prod bootstrap skipped: SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD not set.");
             return;
@@ -128,7 +140,7 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
         Role superAdminRole = requireRole("ROLE_SUPER_ADMIN");
-        ensureUsuario(superAdminEmail, "Super Administrador", superAdminPassword, superAdminRole);
+        ensureUsuario(superAdminEmail, "Super Administrador", superAdminPassword, superAdminRole, empresa.getId());
         log.info("Prod bootstrap: SUPER_ADMIN account created for {}.", superAdminEmail);
     }
 
@@ -141,7 +153,7 @@ public class DataInitializer implements CommandLineRunner {
             .orElseThrow(() -> new IllegalStateException("Required role missing: " + nome));
     }
 
-    private void ensureUsuario(String email, String nome, String senhaPlana, Role role) {
+    private void ensureUsuario(String email, String nome, String senhaPlana, Role role, Long empresaId) {
         Usuario u = usuarioRepository.findByEmail(email).orElse(null);
         if (u == null) {
             u = new Usuario();
@@ -150,6 +162,7 @@ public class DataInitializer implements CommandLineRunner {
         }
         if (u.getNome() == null) u.setNome(nome);
         if (!u.isAtivo()) u.setAtivo(true);
+        if (u.getEmpresaId() == null) u.setEmpresaId(empresaId);
         u.setRole(role);
         usuarioRepository.save(u);
         log.info("User ensured: {} [{}]", email, role.getNome());

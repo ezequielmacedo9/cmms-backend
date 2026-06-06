@@ -2,6 +2,7 @@ package br.com.cmms.cmms.controller;
 
 import br.com.cmms.cmms.dto.ConfiguracaoSistemaDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
+import br.com.cmms.cmms.security.TenantResolver;
 import br.com.cmms.cmms.service.AuditService;
 import br.com.cmms.cmms.service.ConfiguracaoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,10 +32,12 @@ public class ConfiguracaoController {
 
     private final ConfiguracaoService service;
     private final AuditService audit;
+    private final TenantResolver tenant;
 
-    public ConfiguracaoController(ConfiguracaoService service, AuditService audit) {
+    public ConfiguracaoController(ConfiguracaoService service, AuditService audit, TenantResolver tenant) {
         this.service = service;
         this.audit = audit;
+        this.tenant = tenant;
     }
 
     /**
@@ -69,7 +72,7 @@ public class ConfiguracaoController {
             @AuthenticationPrincipal UserDetails ud,
             HttpServletRequest request) {
         service.salvar(values);
-        audit.log(ud.getUsername(), null, "CONFIG_UPDATE", "CONFIGURACAO", null,
+        audit.log(tenant.empresaIdAtual(), ud.getUsername(), null, "CONFIG_UPDATE", "CONFIGURACAO", null,
             "Configurações atualizadas: " + values.keySet(),
             AuditService.getClientIp(request));
         return ResponseEntity.ok(Map.of("message", "Configurações salvas"));

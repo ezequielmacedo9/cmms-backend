@@ -11,6 +11,7 @@ import br.com.cmms.cmms.model.Role;
 import br.com.cmms.cmms.model.Usuario;
 import br.com.cmms.cmms.repository.RoleRepository;
 import br.com.cmms.cmms.repository.UsuarioRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +21,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * User management, scoped to the operator's empresa. The operator can only see
+ * and manage users that belong to the same empresa (target lookups go through
+ * {@code findByIdAndEmpresaId} — closing IDOR across tenants).
+ */
 @Service
 public class UsuarioService {
 
@@ -31,26 +37,29 @@ public class UsuarioService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService audit;
+    private final TenantResolver tenant;
 
     public UsuarioService(UsuarioRepository usuarioRepository,
                           RoleRepository roleRepository,
                           PasswordEncoder passwordEncoder,
-                          AuditService audit) {
+                          AuditService audit,
+                          TenantResolver tenant) {
         this.usuarioRepository = usuarioRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.audit = audit;
+        this.tenant = tenant;
     }
 
     public List<UsuarioResponseDTO> listar() {
-        return usuarioRepository.findAllByOrderByDataCriacaoDesc()
+        return usuarioRepository.findByEmpresaIdOrderByDataCriacaoDesc(tenant.requireEmpresaId())
             .stream()
             .map(UsuarioResponseDTO::from)
             .toList();
     }
 
     public Page<UsuarioResponseDTO> listar(Pageable pageable) {
-        return usuarioRepository.findAllByOrderByDataCriacaoDesc(pageable)
+        return usuarioRepository.findByEmpresaIdOrderByDataCriacaoDesc(tenant.requireEmpresaId(), pageable)
             .map(UsuarioResponseDTO::from);
     }
 
@@ -80,9 +89,11 @@ public class UsuarioService {
         novo.setSenha(passwordEncoder.encode(dto.getSenha()));
         novo.setRole(role);
         novo.setAtivo(true);
+        // New users join the operator's empresa.
+        novo.setEmpresaId(operador.getEmpresaId());
 
         Usuario saved = usuarioRepository.save(novo);
-        audit.log(operador.getEmail(), operador.getId(), "USER_CREATED", "USUARIO", saved.getId(),
+        audit.log(operador.getEmpresaId(), operador.getEmail(), operador.getId(), "USER_CREATED", "USUARIO", saved.getId(),
             "Novo usuário " + saved.getEmail() + " criado com role " + role.getNome(), null);
         return UsuarioResponseDTO.from(saved);
     }
@@ -93,7 +104,7 @@ public class UsuarioService {
         }
 
         Usuario operador = findByEmailOrThrow(emailOperador);
-        Usuario alvo = findByIdOrThrow(id);
+        Usuario alvo = findAlvoOrThrow(id, operador);
 
         if (alvo.getId().equals(operador.getId())) {
             throw new ForbiddenException("SELF_ROLE_CHANGE_FORBIDDEN",
@@ -109,33 +120,33 @@ public class UsuarioService {
         String roleAnterior = alvo.getRole().getNome();
         alvo.setRole(novaRole);
         Usuario saved = usuarioRepository.save(alvo);
-        audit.log(operador.getEmail(), operador.getId(), "USER_ROLE_CHANGED", "USUARIO", saved.getId(),
+        audit.log(operador.getEmpresaId(), operador.getEmail(), operador.getId(), "USER_ROLE_CHANGED", "USUARIO", saved.getId(),
             "Role de " + saved.getEmail() + ": " + roleAnterior + " -> " + novaRole.getNome(), null);
         return UsuarioResponseDTO.from(saved);
     }
 
     public UsuarioResponseDTO ativar(Long id, String emailOperador) {
         Usuario operador = findByEmailOrThrow(emailOperador);
-        validarOperadorPodeGerenciarAlvo(id, emailOperador);
-        Usuario u = findByIdOrThrow(id);
-        u.setAtivo(true);
-        Usuario saved = usuarioRepository.save(u);
-        audit.log(operador.getEmail(), operador.getId(), "USER_ACTIVATED", "USUARIO", saved.getId(),
+        Usuario alvo = findAlvoOrThrow(id, operador);
+        validarPermissaoRole(operador, alvo.getRole().getNome());
+        alvo.setAtivo(true);
+        Usuario saved = usuarioRepository.save(alvo);
+        audit.log(operador.getEmpresaId(), operador.getEmail(), operador.getId(), "USER_ACTIVATED", "USUARIO", saved.getId(),
             "Usuário " + saved.getEmail() + " reativado", null);
         return UsuarioResponseDTO.from(saved);
     }
 
     public UsuarioResponseDTO desativar(Long id, String emailOperador) {
         Usuario operador = findByEmailOrThrow(emailOperador);
-        if (findByIdOrThrow(id).getId().equals(operador.getId())) {
+        Usuario alvo = findAlvoOrThrow(id, operador);
+        if (alvo.getId().equals(operador.getId())) {
             throw new ForbiddenException("SELF_DEACTIVATE_FORBIDDEN",
                 "Você não pode desativar sua própria conta.");
         }
-        validarOperadorPodeGerenciarAlvo(id, emailOperador);
-        Usuario u = findByIdOrThrow(id);
-        u.setAtivo(false);
-        Usuario saved = usuarioRepository.save(u);
-        audit.log(operador.getEmail(), operador.getId(), "USER_DEACTIVATED", "USUARIO", saved.getId(),
+        validarPermissaoRole(operador, alvo.getRole().getNome());
+        alvo.setAtivo(false);
+        Usuario saved = usuarioRepository.save(alvo);
+        audit.log(operador.getEmpresaId(), operador.getEmail(), operador.getId(), "USER_DEACTIVATED", "USUARIO", saved.getId(),
             "Usuário " + saved.getEmail() + " desativado", null);
         return UsuarioResponseDTO.from(saved);
     }
@@ -146,34 +157,30 @@ public class UsuarioService {
      */
     public void deletar(Long id, String emailOperador) {
         Usuario operador = findByEmailOrThrow(emailOperador);
-        Usuario alvo = findByIdOrThrow(id);
+        Usuario alvo = findAlvoOrThrow(id, operador);
         if (alvo.getId().equals(operador.getId())) {
             throw new ForbiddenException("SELF_DELETE_FORBIDDEN",
                 "Você não pode deletar sua própria conta.");
         }
+        validarPermissaoRole(operador, alvo.getRole().getNome());
         String alvoEmail = alvo.getEmail();
         alvo.setDeletedAt(LocalDateTime.now());
         usuarioRepository.save(alvo);
-        audit.log(operador.getEmail(), operador.getId(), "USER_DELETED", "USUARIO", id,
+        audit.log(operador.getEmpresaId(), operador.getEmail(), operador.getId(), "USER_DELETED", "USUARIO", id,
             "Usuário " + alvoEmail + " removido (soft delete)", null);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
 
-    private Usuario findByIdOrThrow(Long id) {
-        return usuarioRepository.findById(id)
+    /** Loads the target user only if it lives in the operator's empresa (404 otherwise). */
+    private Usuario findAlvoOrThrow(Long id, Usuario operador) {
+        return usuarioRepository.findByIdAndEmpresaId(id, operador.getEmpresaId())
             .orElseThrow(() -> NotFoundException.of("Usuário", id));
     }
 
     private Usuario findByEmailOrThrow(String email) {
         return usuarioRepository.findByEmail(email)
             .orElseThrow(() -> new NotFoundException("OPERATOR_NOT_FOUND", "Operador não encontrado."));
-    }
-
-    private void validarOperadorPodeGerenciarAlvo(Long idAlvo, String emailOperador) {
-        Usuario operador = findByEmailOrThrow(emailOperador);
-        Usuario alvo = findByIdOrThrow(idAlvo);
-        validarPermissaoRole(operador, alvo.getRole().getNome());
     }
 
     /**

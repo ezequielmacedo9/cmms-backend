@@ -14,14 +14,14 @@ public class AuditService {
     public AuditService(AuditLogRepository repo) { this.repo = repo; }
 
     @Async
-    public void log(String userEmail, Long userId, String acao, String recurso,
+    public void log(Long empresaId, String userEmail, Long userId, String acao, String recurso,
                     Long recursoId, String detalhes, String ip) {
-        repo.save(new AuditLog(userEmail, userId, acao, recurso, recursoId, detalhes, ip));
+        repo.save(new AuditLog(empresaId, userEmail, userId, acao, recurso, recursoId, detalhes, ip));
     }
 
     @Async
-    public void log(String userEmail, Long userId, String acao, String recurso, String detalhes, String ip) {
-        log(userEmail, userId, acao, recurso, null, detalhes, ip);
+    public void log(Long empresaId, String userEmail, Long userId, String acao, String recurso, String detalhes, String ip) {
+        log(empresaId, userEmail, userId, acao, recurso, null, detalhes, ip);
     }
 
     public static String getClientIp(HttpServletRequest request) {

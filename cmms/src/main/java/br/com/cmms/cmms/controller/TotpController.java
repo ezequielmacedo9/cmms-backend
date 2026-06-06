@@ -94,7 +94,7 @@ public class TotpController {
         u.setTotpSecret(secret);
         u.setTotpEnabled(true);
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "2FA_ENABLED", "USUARIO", u.getId(),
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "2FA_ENABLED", "USUARIO", u.getId(),
             "2FA ativado", AuditService.getClientIp(request));
         return ResponseEntity.ok(Map.of("message", "2FA ativado com sucesso."));
     }
@@ -114,7 +114,7 @@ public class TotpController {
         u.setTotpSecret(null);
         u.setTotpEnabled(false);
         usuarioRepo.save(u);
-        audit.log(u.getEmail(), u.getId(), "2FA_DISABLED", "USUARIO", u.getId(),
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "2FA_DISABLED", "USUARIO", u.getId(),
             "2FA desativado", AuditService.getClientIp(request));
         return ResponseEntity.ok(Map.of("message", "2FA desativado."));
     }
