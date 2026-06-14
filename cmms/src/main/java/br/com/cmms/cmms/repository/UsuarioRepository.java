@@ -21,6 +21,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     @EntityGraph(attributePaths = "role")
     Optional<Usuario> findByIdAndEmpresaId(Long id, Long empresaId);
 
+    /** Active (non-deleted) user count for plan-quota enforcement. */
+    long countByEmpresaId(Long empresaId);
+
     /** Tenant-scoped non-paged listing. */
     @EntityGraph(attributePaths = "role")
     List<Usuario> findByEmpresaIdOrderByDataCriacaoDesc(Long empresaId);

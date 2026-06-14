@@ -20,6 +20,9 @@ public interface MaquinaRepository extends JpaRepository<Maquina, Long> {
     /** Tenant-scoped full list (reports / legacy non-paged callers). */
     List<Maquina> findByEmpresaId(Long empresaId);
 
+    /** Active (non-deleted) machine count for plan-quota enforcement. */
+    long countByEmpresaId(Long empresaId);
+
     /** Cross-tenant scan used only by the system scheduler (logs overdue preventives). */
     List<Maquina> findByIntervaloPreventivaDiasGreaterThan(int dias);
 
