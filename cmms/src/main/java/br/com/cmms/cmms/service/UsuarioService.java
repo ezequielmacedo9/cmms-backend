@@ -38,17 +38,20 @@ public class UsuarioService {
     private final PasswordEncoder passwordEncoder;
     private final AuditService audit;
     private final TenantResolver tenant;
+    private final AssinaturaService assinatura;
 
     public UsuarioService(UsuarioRepository usuarioRepository,
                           RoleRepository roleRepository,
                           PasswordEncoder passwordEncoder,
                           AuditService audit,
-                          TenantResolver tenant) {
+                          TenantResolver tenant,
+                          AssinaturaService assinatura) {
         this.usuarioRepository = usuarioRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.audit = audit;
         this.tenant = tenant;
+        this.assinatura = assinatura;
     }
 
     public List<UsuarioResponseDTO> listar() {
@@ -79,6 +82,7 @@ public class UsuarioService {
 
         Usuario operador = findByEmailOrThrow(emailOperador);
         validarPermissaoRole(operador, dto.getRoleNome());
+        assinatura.assertPodeCriarUsuario(operador.getEmpresaId()); // plan-quota gate
 
         Role role = roleRepository.findByNome(dto.getRoleNome())
             .orElseThrow(() -> new NotFoundException("ROLE_NOT_FOUND", "Role não encontrada."));

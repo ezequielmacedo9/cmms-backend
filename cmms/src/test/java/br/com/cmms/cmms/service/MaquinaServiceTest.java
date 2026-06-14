@@ -52,6 +52,7 @@ class MaquinaServiceTest {
 
     @Mock MaquinaRepository maquinaRepository;
     @Mock TenantResolver tenant;
+    @Mock AssinaturaService assinatura;
     @InjectMocks MaquinaService maquinaService;
 
     private Maquina maquina;

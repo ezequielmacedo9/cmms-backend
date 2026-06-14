@@ -41,6 +41,7 @@ class UsuarioServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock AuditService audit;
     @Mock TenantResolver tenant;
+    @Mock AssinaturaService assinatura;
 
     @InjectMocks UsuarioService usuarioService;
 

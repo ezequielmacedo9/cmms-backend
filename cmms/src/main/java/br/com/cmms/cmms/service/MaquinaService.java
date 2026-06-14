@@ -29,16 +29,21 @@ public class MaquinaService {
 
     private final MaquinaRepository maquinaRepository;
     private final TenantResolver tenant;
+    private final AssinaturaService assinatura;
 
-    public MaquinaService(MaquinaRepository maquinaRepository, TenantResolver tenant) {
+    public MaquinaService(MaquinaRepository maquinaRepository, TenantResolver tenant,
+                          AssinaturaService assinatura) {
         this.maquinaRepository = maquinaRepository;
         this.tenant = tenant;
+        this.assinatura = assinatura;
     }
 
     @Transactional
     public MaquinaResponseDTO cadastrar(MaquinaRequestDTO dto) {
+        Long empresaId = tenant.requireEmpresaId();
+        assinatura.assertPodeCriarMaquina(empresaId); // plan-quota gate
         Maquina m = new Maquina();
-        m.setEmpresaId(tenant.requireEmpresaId());
+        m.setEmpresaId(empresaId);
         applyDto(dto, m);
         log.info("Cadastrando máquina: {}", dto.nome());
         return toDTO(maquinaRepository.save(m));

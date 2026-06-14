@@ -35,6 +35,7 @@ public class RegistroService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final AuditService audit;
+    private final AssinaturaService assinaturaService;
 
     public RegistroService(EmpresaRepository empresaRepo,
                            UsuarioRepository usuarioRepo,
@@ -42,7 +43,8 @@ public class RegistroService {
                            PasswordEncoder passwordEncoder,
                            JwtService jwtService,
                            RefreshTokenService refreshTokenService,
-                           AuditService audit) {
+                           AuditService audit,
+                           AssinaturaService assinaturaService) {
         this.empresaRepo = empresaRepo;
         this.usuarioRepo = usuarioRepo;
         this.roleRepo = roleRepo;
@@ -50,6 +52,7 @@ public class RegistroService {
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.audit = audit;
+        this.assinaturaService = assinaturaService;
     }
 
     @Transactional
@@ -62,6 +65,8 @@ public class RegistroService {
             .orElseThrow(() -> new IllegalStateException("Required role missing: " + ADMIN_ROLE));
 
         Empresa empresa = empresaRepo.save(new Empresa(dto.getEmpresaNome().trim()));
+        // Start the empresa on a TRIAL subscription right away.
+        assinaturaService.ensureForEmpresa(empresa.getId());
 
         Usuario admin = new Usuario();
         admin.setEmail(dto.getEmail());
