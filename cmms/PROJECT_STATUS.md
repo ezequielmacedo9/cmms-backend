@@ -33,21 +33,16 @@
 - **FASE 11** — Integração dos componentes nas páginas: `TableState` (busca viva + sort por coluna + paginação por signals) em maquinas/manutencoes/estoque/usuarios; `ExportService` substitui o CSV duplicado; `ConfirmDialogService` substitui os modais de delete inline; tour de onboarding ativado no Dashboard; `ShortcutsHelpComponent` (tecla `?`)
 - **FASE A (multi-tenancy)** — SaaS multi-empresa row-based: entidade `Empresa` + `empresa_id` em maquinas/manutencoes/pecas/ferramentas/usuario; `TenantResolver`; todo repo/service/dashboard/relatório/auditoria escopado por empresa (IDOR fechado no get-by-id); cadastro self-service `POST /api/auth/register` (empresa + admin) + página `/cadastro`; login Google provisiona empresa própria; Flyway V4 com backfill; teste de integração de isolamento
 - **FASE B (billing, sem gateway)** — Enum `Plano` (STARTER/PRO/BUSINESS/ENTERPRISE), entidade `Assinatura` (1 por empresa) + Flyway V5 (backfill TRIAL); `BillingController` casando com o contrato que o frontend já consome (`/planos`, `/minha`, `/checkout`, `/upgrade`, `/cancelar`); enforcement de quota de plano em máquinas/usuários; checkout ativa o plano sem gateway (linkPagamento vazio). Frontend já estava pronto
-- **FASE C (CI/CD + observabilidade + authz)** — GitHub Actions (build+test gate) nos 2 repos; `AuthorizationIntegrationTest` (matriz de roles por HTTP: VISUALIZADOR não escreve, GESTOR não deleta, anônimo barrado); Sentry no backend (`sentry-spring-boot-starter-jakarta`, no-op sem DSN). **Sentry frontend adiado** (ver pendência do drift Angular)
+- **FASE C (CI/CD + observabilidade + authz)** — GitHub Actions (build+test gate) nos 2 repos; `AuthorizationIntegrationTest` (matriz de roles por HTTP: VISUALIZADOR não escreve, GESTOR não deleta, anônimo barrado); Sentry no backend (`sentry-spring-boot-starter-jakarta`) e no frontend (`@sentry/browser`, lazy), ambos no-op sem DSN; corrigido o drift de patch dos pacotes `@angular/*` (animations/service-worker realinhados a 21.2.1, `npm ci` volta a funcionar)
 
 **Estado atual:**
 - Backend: 97 testes, BUILD SUCCESS, zero warnings, HEAD `536174f` (CI + authz + Sentry)
-- Frontend: 45 testes, prod build 489kB, zero warnings, HEAD `6d3cedc` (CI)
-- Pendências resolvidas: CSS morto dos modais removido; service worker não intercepta mais `/api/` (sem erros `safeFetch/handleFetch`)
+- Frontend: 45 testes, prod build 489kB, zero warnings, HEAD `73de5bf` (CI + Sentry + deps alinhadas)
+- Pendências resolvidas: CSS morto removido; SW não intercepta `/api/`; drift @angular/* corrigido; CI sem `--legacy-peer-deps`
 
 ---
 
 ## ⏳ Pendências
-
-### Drift de versões @angular/* (PRIORIDADE MÉDIA, descoberto na FASE C)
-- O lockfile do frontend tem patches desalinhados: `@angular/animations` 21.2.5 e `@angular/service-worker` 21.2.10 enquanto `core`/`common` estão 21.2.1
-- Isso faz `npm install`/`npm ci` falhar com ERESOLVE; o CI usa `--legacy-peer-deps` como paliativo e novas deps (ex.: `@sentry/browser`) ficam bloqueadas
-- Corrigir alinhando tudo com `ng update` / reinstalando os `@angular/*` na mesma versão; depois remover o `--legacy-peer-deps` do CI e plugar o Sentry no frontend
 
 ### FASE B.2 — Gateway de pagamento (Asaas/Stripe)
 - `checkout` hoje ativa o plano manualmente (linkPagamento vazio). Plugar gateway: gerar link real + webhook que confirma pagamento (ATIVA só após webhook); config de chave por env
@@ -90,14 +85,12 @@ FASES 11, A (multi-tenancy), B (billing sem gateway) e C (CI/CD + observabilidad
 - FASE B (backend): Plano + Assinatura + Flyway V5; BillingController; quota de plano;
   checkout sem gateway (link vazio).
 - FASE C: GitHub Actions (build+test) nos 2 repos; AuthorizationIntegrationTest (matriz de
-  roles); Sentry no backend (no-op sem DSN). Sentry frontend ADIADO pelo drift Angular.
-
-ATENCAO: drift de patch nos pacotes @angular/* (animations 21.2.5 / service-worker 21.2.10 vs
-core 21.2.1) quebra npm ci; CI usa --legacy-peer-deps. Alinhar com ng update antes de novas
-deps no frontend.
+  roles); Sentry no backend e frontend (no-op sem DSN); drift @angular/* corrigido
+  (animations/service-worker -> 21.2.1) e CI sem --legacy-peer-deps.
 
 PROXIMA FASE — opcoes: FASE B.2 (gateway de pagamento Asaas/Stripe + webhook), FASE D (Ordem
-de Servico real), ou alinhar @angular/* + Sentry frontend. Confirme antes de comecar.
+de Servico real: workflow/tecnico=usuario/anexos/checklist/baixa de estoque), ou FASE E
+(relatorios gerenciais MTTR/MTBF/custo). Confirme antes de comecar.
 
 Leia AGENTS.md. Build verde obrigatório antes de push. Commits granulares em ASCII
 via git commit -F C:\WINDOWS\TEMP\opencode\commit-msg.txt. Push ao final de cada fase.
