@@ -33,23 +33,27 @@
 - **FASE 11** — Integração dos componentes nas páginas: `TableState` (busca viva + sort por coluna + paginação por signals) em maquinas/manutencoes/estoque/usuarios; `ExportService` substitui o CSV duplicado; `ConfirmDialogService` substitui os modais de delete inline; tour de onboarding ativado no Dashboard; `ShortcutsHelpComponent` (tecla `?`)
 - **FASE A (multi-tenancy)** — SaaS multi-empresa row-based: entidade `Empresa` + `empresa_id` em maquinas/manutencoes/pecas/ferramentas/usuario; `TenantResolver`; todo repo/service/dashboard/relatório/auditoria escopado por empresa (IDOR fechado no get-by-id); cadastro self-service `POST /api/auth/register` (empresa + admin) + página `/cadastro`; login Google provisiona empresa própria; Flyway V4 com backfill; teste de integração de isolamento
 - **FASE B (billing, sem gateway)** — Enum `Plano` (STARTER/PRO/BUSINESS/ENTERPRISE), entidade `Assinatura` (1 por empresa) + Flyway V5 (backfill TRIAL); `BillingController` casando com o contrato que o frontend já consome (`/planos`, `/minha`, `/checkout`, `/upgrade`, `/cancelar`); enforcement de quota de plano em máquinas/usuários; checkout ativa o plano sem gateway (linkPagamento vazio). Frontend já estava pronto
+- **FASE C (CI/CD + observabilidade + authz)** — GitHub Actions (build+test gate) nos 2 repos; `AuthorizationIntegrationTest` (matriz de roles por HTTP: VISUALIZADOR não escreve, GESTOR não deleta, anônimo barrado); Sentry no backend (`sentry-spring-boot-starter-jakarta`, no-op sem DSN). **Sentry frontend adiado** (ver pendência do drift Angular)
 
 **Estado atual:**
-- Backend: 96 testes, BUILD SUCCESS, zero warnings, HEAD `d2f1cd3` (billing)
-- Frontend: 45 testes, prod build 489kB, zero warnings, HEAD `a7d59c6` (cadastro de empresa)
+- Backend: 97 testes, BUILD SUCCESS, zero warnings, HEAD `536174f` (CI + authz + Sentry)
+- Frontend: 45 testes, prod build 489kB, zero warnings, HEAD `6d3cedc` (CI)
 - Pendências resolvidas: CSS morto dos modais removido; service worker não intercepta mais `/api/` (sem erros `safeFetch/handleFetch`)
 
 ---
 
 ## ⏳ Pendências
 
+### Drift de versões @angular/* (PRIORIDADE MÉDIA, descoberto na FASE C)
+- O lockfile do frontend tem patches desalinhados: `@angular/animations` 21.2.5 e `@angular/service-worker` 21.2.10 enquanto `core`/`common` estão 21.2.1
+- Isso faz `npm install`/`npm ci` falhar com ERESOLVE; o CI usa `--legacy-peer-deps` como paliativo e novas deps (ex.: `@sentry/browser`) ficam bloqueadas
+- Corrigir alinhando tudo com `ng update` / reinstalando os `@angular/*` na mesma versão; depois remover o `--legacy-peer-deps` do CI e plugar o Sentry no frontend
+
 ### FASE B.2 — Gateway de pagamento (Asaas/Stripe)
 - `checkout` hoje ativa o plano manualmente (linkPagamento vazio). Plugar gateway: gerar link real + webhook que confirma pagamento (ATIVA só após webhook); config de chave por env
 - Tornar `ConfiguracaoSistema` por-empresa (hoje global — bleed cosmético de nome/timezone entre tenants)
 - (Opcional) gate de acesso por trial expirado/inadimplente nas escritas
 
-### FASE C — CI/CD + Sentry + testes de autorização/IDOR (PRIORIDADE ALTA)
-- GitHub Actions (build+test gate) nos 2 repos; Sentry back+front; testes de controller por role
 
 ### FASE 10.2 — Integration tests endpoints (PRIORIDADE ALTA)
 - `MaquinaControllerIntegrationTest`, `ManutencaoControllerIntegrationTest`, `PecaControllerIntegrationTest`
@@ -77,22 +81,23 @@ Backend: https://github.com/ezequielmacedo9/cmms-backend (Spring Boot 3.5.9 + Ja
 Frontend: https://github.com/ezequielmacedo9/cmms-frontend (Angular 21 + standalone + signals)
 Paths: C:\Users\USER\cmms-backend e C:\Users\USER\cmms-frontend
 
-ESTADO: 96 testes backend (HEAD d2f1cd3), 45 frontend (HEAD a7d59c6), BUILD SUCCESS, zero warnings.
+ESTADO: 97 testes backend (HEAD 536174f), 45 frontend (HEAD 6d3cedc), BUILD SUCCESS, zero warnings.
 
-FASES 11, A (multi-tenancy) e B (billing sem gateway) CONCLUIDAS:
-- FASE 11 (frontend): TableState (sort+filter), ExportService, ConfirmDialogService,
-  tour no Dashboard, ShortcutsHelpComponent. Pendencias (CSS morto, SW /api) resolvidas.
-- FASE A (backend+frontend): SaaS multi-empresa. Entidade Empresa + empresa_id em todos os
-  agregados; TenantResolver; repos/services/dashboard/relatorio/auditoria escopados (IDOR
-  fechado); cadastro self-service POST /api/auth/register + pagina /cadastro; Google cria
-  empresa propria; Flyway V4 com backfill; MultiTenantIsolationTest.
-- FASE B (backend): Plano enum + Assinatura (1 por empresa) + Flyway V5; BillingController
-  (/planos /minha /checkout /upgrade /cancelar) casando com o frontend existente; enforcement
-  de quota de plano em maquinas/usuarios; checkout ativa o plano sem gateway (link vazio).
+FASES 11, A (multi-tenancy), B (billing sem gateway) e C (CI/CD + observabilidade) CONCLUIDAS:
+- FASE 11 (frontend): TableState, ExportService, ConfirmDialogService, tour, ShortcutsHelp.
+- FASE A: SaaS multi-empresa (Empresa + empresa_id, TenantResolver, tudo escopado, IDOR
+  fechado, cadastro POST /api/auth/register + /cadastro, Flyway V4, MultiTenantIsolationTest).
+- FASE B (backend): Plano + Assinatura + Flyway V5; BillingController; quota de plano;
+  checkout sem gateway (link vazio).
+- FASE C: GitHub Actions (build+test) nos 2 repos; AuthorizationIntegrationTest (matriz de
+  roles); Sentry no backend (no-op sem DSN). Sentry frontend ADIADO pelo drift Angular.
 
-PROXIMA FASE (C) — CI/CD + Sentry + testes authz/IDOR: GitHub Actions (build+test gate) nos 2
-repos, Sentry back+front, testes de controller por role. Depois: FASE B.2 (gateway de
-pagamento Asaas/Stripe + webhook) e ConfiguracaoSistema por-empresa.
+ATENCAO: drift de patch nos pacotes @angular/* (animations 21.2.5 / service-worker 21.2.10 vs
+core 21.2.1) quebra npm ci; CI usa --legacy-peer-deps. Alinhar com ng update antes de novas
+deps no frontend.
+
+PROXIMA FASE — opcoes: FASE B.2 (gateway de pagamento Asaas/Stripe + webhook), FASE D (Ordem
+de Servico real), ou alinhar @angular/* + Sentry frontend. Confirme antes de comecar.
 
 Leia AGENTS.md. Build verde obrigatório antes de push. Commits granulares em ASCII
 via git commit -F C:\WINDOWS\TEMP\opencode\commit-msg.txt. Push ao final de cada fase.
