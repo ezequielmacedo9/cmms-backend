@@ -161,99 +161,98 @@ public class RelatorioService {
 
     // ── PDF builder ───────────────────────────────────────────────────────
 
+    /**
+     * Renders the table across as many A4 pages as needed. The first page
+     * carries the title bar; every page repeats the column header and a footer
+     * with its page number. Previously everything was crammed onto a single
+     * page and overflowing rows were silently dropped.
+     */
     private byte[] buildPdf(String title, int total, String[] headers, float[] ratios,
                             java.util.List<String[]> rows) throws Exception {
+        final float margin = 40f;
+        final float rowH = 16f;
+        final PDType1Font bold    = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
+        final PDType1Font regular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
+        final PDColor purple  = rgb(0.49f, 0.23f, 0.93f);
+        final PDColor white   = rgb(1f, 1f, 1f);
+        final PDColor grey    = rgb(0.55f, 0.55f, 0.55f);
+        final PDColor dark    = rgb(0.15f, 0.08f, 0.28f);
+        final PDColor rowGrey = rgb(0.92f, 0.90f, 0.95f);
+        final PDColor rowWhite= rgb(1f, 1f, 1f);
+
         try (PDDocument doc = new PDDocument()) {
-            float margin = 40f;
-            addPage(doc, title, total, headers, ratios, rows, margin);
+            int i = 0;
+            int pageNum = 0;
+            boolean firstPage = true;
+            do {
+                PDPage page = new PDPage(PDRectangle.A4);
+                doc.addPage(page);
+                pageNum++;
+                float pageH = page.getMediaBox().getHeight();
+                float pageW = page.getMediaBox().getWidth() - 2 * margin;
+                float y;
+
+                try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
+                    if (firstPage) {
+                        cs.setNonStrokingColor(dark);
+                        cs.addRect(0, pageH - 60, page.getMediaBox().getWidth(), 60);
+                        cs.fill();
+                        cs.beginText(); cs.setFont(bold, 16); cs.setNonStrokingColor(white);
+                        cs.newLineAtOffset(margin, pageH - 38); cs.showText(title); cs.endText();
+                        cs.beginText(); cs.setFont(regular, 9); cs.setNonStrokingColor(rgb(0.7f, 0.6f, 1f));
+                        cs.newLineAtOffset(margin, pageH - 52);
+                        cs.showText("CMMS Industrial Suite  •  Gerado em " + LocalDate.now().format(FMT) + "  •  Total: " + total);
+                        cs.endText();
+                        y = pageH - 72;
+                        firstPage = false;
+                    } else {
+                        y = pageH - margin;
+                    }
+
+                    // Column header (repeated on every page)
+                    cs.setNonStrokingColor(purple);
+                    cs.addRect(margin, y - rowH + 4, pageW, rowH); cs.fill();
+                    cs.beginText(); cs.setFont(bold, 8); cs.setNonStrokingColor(white);
+                    cs.newLineAtOffset(margin + 4, y - rowH + 8);
+                    for (int h = 0; h < headers.length; h++) {
+                        if (h > 0) cs.newLineAtOffset(pageW * ratios[h - 1], 0);
+                        cs.showText(headers[h]);
+                    }
+                    cs.endText();
+                    y -= rowH + 2;
+
+                    // Data rows until the page is full, then continue on the next page
+                    boolean alt = (i % 2 != 0);
+                    while (i < rows.size() && y >= margin + 20) {
+                        String[] row = rows.get(i);
+                        cs.setNonStrokingColor(alt ? rowGrey : rowWhite);
+                        cs.addRect(margin, y - rowH + 4, pageW, rowH); cs.fill();
+                        cs.beginText(); cs.setFont(regular, 8); cs.setNonStrokingColor(rgb(0.1f, 0.05f, 0.2f));
+                        cs.newLineAtOffset(margin + 4, y - rowH + 8);
+                        for (int c = 0; c < row.length && c < headers.length; c++) {
+                            if (c > 0) cs.newLineAtOffset(pageW * ratios[c - 1], 0);
+                            String v = row[c] != null ? row[c] : "";
+                            if (v.length() > 28) v = v.substring(0, 26) + "…";
+                            cs.showText(v);
+                        }
+                        cs.endText();
+                        y -= rowH;
+                        alt = !alt;
+                        i++;
+                    }
+
+                    // Footer with page number (every page)
+                    cs.setNonStrokingColor(grey);
+                    cs.beginText(); cs.setFont(regular, 7);
+                    cs.newLineAtOffset(margin, margin - 10);
+                    cs.showText("CMMS Industrial Suite — Página " + pageNum);
+                    cs.endText();
+                }
+            } while (i < rows.size());
+
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             doc.save(bos);
             return bos.toByteArray();
-        }
-    }
-
-    private void addPage(PDDocument doc, String title, int total, String[] headers,
-                         float[] ratios, java.util.List<String[]> rows, float margin) throws Exception {
-        PDPage page = new PDPage(PDRectangle.A4);
-        doc.addPage(page);
-        float pageH = page.getMediaBox().getHeight();
-        float pageW = page.getMediaBox().getWidth() - 2 * margin;
-        float y = pageH - margin;
-
-        PDType1Font bold    = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-        PDType1Font regular = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-        PDColor purple  = rgb(0.49f, 0.23f, 0.93f);
-        PDColor white   = rgb(1f, 1f, 1f);
-        PDColor grey    = rgb(0.55f, 0.55f, 0.55f);
-        PDColor dark    = rgb(0.15f, 0.08f, 0.28f);
-        PDColor rowGrey = rgb(0.92f, 0.90f, 0.95f);
-        PDColor rowWhite= rgb(1f, 1f, 1f);
-
-        try (PDPageContentStream cs = new PDPageContentStream(doc, page)) {
-            // Title bar
-            cs.setNonStrokingColor(dark);
-            cs.addRect(0, pageH - 60, page.getMediaBox().getWidth(), 60);
-            cs.fill();
-            cs.beginText();
-            cs.setFont(bold, 16);
-            cs.setNonStrokingColor(white);
-            cs.newLineAtOffset(margin, pageH - 38);
-            cs.showText(title);
-            cs.endText();
-            cs.beginText();
-            cs.setFont(regular, 9);
-            cs.setNonStrokingColor(rgb(0.7f,0.6f,1f));
-            cs.newLineAtOffset(margin, pageH - 52);
-            cs.showText("CMMS Industrial Suite  •  Gerado em " + LocalDate.now().format(FMT) + "  •  Total: " + total);
-            cs.endText();
-            y = pageH - 72;
-
-            // Column headers
-            float rowH = 16f;
-            cs.setNonStrokingColor(purple);
-            cs.addRect(margin, y - rowH + 4, pageW, rowH);
-            cs.fill();
-            cs.beginText();
-            cs.setFont(bold, 8);
-            cs.setNonStrokingColor(white);
-            float cx = margin + 4;
-            cs.newLineAtOffset(cx, y - rowH + 8);
-            for (int i = 0; i < headers.length; i++) {
-                if (i > 0) { cs.newLineAtOffset(pageW * ratios[i-1], 0); cx += pageW * ratios[i-1]; }
-                cs.showText(headers[i]);
-            }
-            cs.endText();
-            y -= rowH + 2;
-
-            // Data rows
-            boolean alt = false;
-            for (String[] row : rows) {
-                if (y < margin + 20) break;
-                cs.setNonStrokingColor(alt ? rowGrey : rowWhite);
-                cs.addRect(margin, y - rowH + 4, pageW, rowH);
-                cs.fill();
-                cs.beginText();
-                cs.setFont(regular, 8);
-                cs.setNonStrokingColor(rgb(0.1f,0.05f,0.2f));
-                float rx = margin + 4;
-                cs.newLineAtOffset(rx, y - rowH + 8);
-                for (int i = 0; i < row.length && i < headers.length; i++) {
-                    if (i > 0) { cs.newLineAtOffset(pageW * ratios[i-1], 0); }
-                    String v = row[i]; if (v.length() > 28) v = v.substring(0, 26) + "…";
-                    cs.showText(v);
-                }
-                cs.endText();
-                y -= rowH;
-                alt = !alt;
-            }
-
-            // Footer
-            cs.setNonStrokingColor(grey);
-            cs.beginText();
-            cs.setFont(regular, 7);
-            cs.newLineAtOffset(margin, margin - 10);
-            cs.showText("CMMS Industrial Suite — Documento gerado automaticamente");
-            cs.endText();
         }
     }
 
