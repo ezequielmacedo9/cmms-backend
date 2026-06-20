@@ -49,6 +49,21 @@ public interface ManutencaoRepository extends JpaRepository<Manutencao, Long> {
     List<Object[]> countGroupByTipo(@Param("empresaId") Long empresaId);
 
     /**
+     * Machines ranked by number of corrective maintenances (the "top
+     * offenders"), for one empresa. Returns {@code [maquinaId, nome, count]}.
+     */
+    @Query("""
+        SELECT m.maquina.id, m.maquina.nome, COUNT(m)
+        FROM Manutencao m
+        WHERE m.empresaId = :empresaId
+          AND m.tipo = 'CORRETIVA'
+          AND m.maquina IS NOT NULL
+        GROUP BY m.maquina.id, m.maquina.nome
+        ORDER BY COUNT(m) DESC
+    """)
+    List<Object[]> findTopOfensores(@Param("empresaId") Long empresaId);
+
+    /**
      * Lightweight rows for MTBF computation (corrective maintenances), scoped
      * to one empresa: {@code [machineId, date]} ordered for a linear scan.
      */
