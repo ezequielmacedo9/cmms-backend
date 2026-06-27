@@ -3,10 +3,15 @@ package br.com.cmms.cmms.service;
 import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
+import br.com.cmms.cmms.exception.ValidationException;
 import br.com.cmms.cmms.model.Manutencao;
+import br.com.cmms.cmms.model.ManutencaoPeca;
 import br.com.cmms.cmms.model.Maquina;
+import br.com.cmms.cmms.model.Peca;
+import br.com.cmms.cmms.repository.ManutencaoPecaRepository;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import br.com.cmms.cmms.repository.PecaRepository;
 import br.com.cmms.cmms.security.TenantResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +43,8 @@ class ManutencaoServiceTest {
 
     @Mock ManutencaoRepository manutencaoRepository;
     @Mock MaquinaRepository    maquinaRepository;
+    @Mock PecaRepository       pecaRepository;
+    @Mock ManutencaoPecaRepository manutencaoPecaRepository;
     @Mock TenantResolver       tenant;
     @InjectMocks ManutencaoService manutencaoService;
 
@@ -47,6 +54,7 @@ class ManutencaoServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
+        lenient().when(manutencaoPecaRepository.findByManutencaoId(anyLong())).thenReturn(List.of());
         maquina = new Maquina();
         ReflectionTestUtils.setField(maquina, "id", 1L);
         maquina.setNome("Torno");
@@ -67,7 +75,7 @@ class ManutencaoServiceTest {
     @DisplayName("cadastrar: 404 quando maquina nao existe")
     void cadastrar_maquinaNotFound() {
         when(maquinaRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
-        var dto = new ManutencaoRequestDTO("PREVENTIVA", "Ana", "x", null, null, null);
+        var dto = new ManutencaoRequestDTO("PREVENTIVA", "Ana", null, "x", null, null, null, null, null, null);
 
         assertThatThrownBy(() -> manutencaoService.cadastrar(dto, 99L))
             .isInstanceOf(NotFoundException.class);
@@ -84,8 +92,8 @@ class ManutencaoServiceTest {
             return m;
         });
 
-        var dto = new ManutencaoRequestDTO("CORRETIVA", "Bob", "Desc",
-                                          null, null, null);
+        var dto = new ManutencaoRequestDTO("CORRETIVA", "Bob", null, "Desc",
+                                          null, null, null, null, null, null);
 
         ManutencaoResponseDTO out = manutencaoService.cadastrar(dto, 1L);
 
@@ -147,5 +155,73 @@ class ManutencaoServiceTest {
         manutencao.setMaquina(null);
         ManutencaoResponseDTO out = manutencaoService.toDTO(manutencao);
         assertThat(out.maquina()).isNull();
+    }
+
+    @Test
+    @DisplayName("cadastrar com pecas: da baixa no estoque e registra consumo")
+    void cadastrar_comPecas_dabaixaNoEstoque() {
+        when(maquinaRepository.findByIdAndEmpresaId(1L, 1L)).thenReturn(Optional.of(maquina));
+        when(manutencaoRepository.save(any(Manutencao.class))).thenAnswer(i -> {
+            Manutencao m = i.getArgument(0);
+            ReflectionTestUtils.setField(m, "id", 55L);
+            return m;
+        });
+        Peca peca = new Peca();
+        ReflectionTestUtils.setField(peca, "id", 9L);
+        peca.setNome("Rolamento");
+        peca.setQuantidadeEmEstoque(10);
+        peca.setCustoUnitario(20.0);
+        when(pecaRepository.findByIdAndEmpresaId(9L, 1L)).thenReturn(Optional.of(peca));
+        when(pecaRepository.save(any(Peca.class))).thenAnswer(i -> i.getArgument(0));
+
+        var dto = new ManutencaoRequestDTO("CORRETIVA", "Bob", null, "x", null, null, null, null, null,
+            List.of(new ManutencaoRequestDTO.PecaConsumo(9L, 3)));
+        manutencaoService.cadastrar(dto, 1L);
+
+        assertThat(peca.getQuantidadeEmEstoque()).isEqualTo(7);
+        verify(manutencaoPecaRepository).save(any(ManutencaoPeca.class));
+    }
+
+    @Test
+    @DisplayName("cadastrar com estoque insuficiente: lanca ESTOQUE_INSUFICIENTE")
+    void cadastrar_estoqueInsuficiente_lancaValidation() {
+        when(maquinaRepository.findByIdAndEmpresaId(1L, 1L)).thenReturn(Optional.of(maquina));
+        when(manutencaoRepository.save(any(Manutencao.class))).thenAnswer(i -> {
+            Manutencao m = i.getArgument(0);
+            ReflectionTestUtils.setField(m, "id", 55L);
+            return m;
+        });
+        Peca peca = new Peca();
+        ReflectionTestUtils.setField(peca, "id", 9L);
+        peca.setNome("Rolamento");
+        peca.setQuantidadeEmEstoque(2);
+        when(pecaRepository.findByIdAndEmpresaId(9L, 1L)).thenReturn(Optional.of(peca));
+
+        var dto = new ManutencaoRequestDTO("CORRETIVA", "Bob", null, "x", null, null, null, null, null,
+            List.of(new ManutencaoRequestDTO.PecaConsumo(9L, 5)));
+
+        assertThatThrownBy(() -> manutencaoService.cadastrar(dto, 1L))
+            .isInstanceOf(ValidationException.class)
+            .extracting("errorCode").isEqualTo("ESTOQUE_INSUFICIENTE");
+    }
+
+    @Test
+    @DisplayName("alterarStatus CONCLUIDA: carimba dataConclusao")
+    void alterarStatus_concluida_setaDataConclusao() {
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
+        when(manutencaoRepository.save(any(Manutencao.class))).thenAnswer(i -> i.getArgument(0));
+
+        ManutencaoResponseDTO out = manutencaoService.alterarStatus(10L, "CONCLUIDA");
+
+        assertThat(out.status()).isEqualTo("CONCLUIDA");
+        assertThat(out.dataConclusao()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("alterarStatus invalido: lanca INVALID_STATUS")
+    void alterarStatus_invalido() {
+        assertThatThrownBy(() -> manutencaoService.alterarStatus(10L, "XPTO"))
+            .isInstanceOf(ValidationException.class)
+            .extracting("errorCode").isEqualTo("INVALID_STATUS");
     }
 }

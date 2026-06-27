@@ -48,6 +48,21 @@ public interface ManutencaoRepository extends JpaRepository<Manutencao, Long> {
     """)
     List<Object[]> countGroupByTipo(@Param("empresaId") Long empresaId);
 
+    /** Total labor cost across all work orders of one empresa. */
+    @Query("SELECT COALESCE(SUM(m.custoMaoObra), 0) FROM Manutencao m WHERE m.empresaId = :empresaId")
+    double sumCustoMaoObraByEmpresa(@Param("empresaId") Long empresaId);
+
+    /** Open/close date pairs of completed work orders, for MTTR. Returns {@code [abertura, conclusao]}. */
+    @Query("""
+        SELECT m.dataAbertura, m.dataConclusao
+        FROM Manutencao m
+        WHERE m.empresaId = :empresaId
+          AND m.status = 'CONCLUIDA'
+          AND m.dataAbertura IS NOT NULL
+          AND m.dataConclusao IS NOT NULL
+    """)
+    List<Object[]> findConcluidasDatas(@Param("empresaId") Long empresaId);
+
     /**
      * Machines ranked by number of corrective maintenances (the "top
      * offenders"), for one empresa. Returns {@code [maquinaId, nome, count]}.

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -79,6 +81,16 @@ public class ManutencaoController {
         return ResponseEntity.ok(PagedResponseDTO.of(manutencaoService.listarPorMaquina(maquinaId, pageable)));
     }
 
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
+    @Operation(summary = "Alterar o status da ordem de serviço",
+        description = "ABERTA -> EM_ANDAMENTO -> CONCLUIDA (carimba a data de conclusão) / CANCELADA.")
+    public ResponseEntity<ManutencaoResponseDTO> alterarStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody StatusRequest body) {
+        return ResponseEntity.ok(manutencaoService.alterarStatus(id, body.status()));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
     @Operation(summary = "Excluir manutenção (soft delete)",
@@ -87,4 +99,6 @@ public class ManutencaoController {
         manutencaoService.deletar(id);
         return ResponseEntity.noContent().build();
     }
+
+    public record StatusRequest(@NotBlank String status) {}
 }

@@ -55,8 +55,27 @@ public class Manutencao {
     @Column(nullable = false)
     private String tecnico;
 
+    /** Optional link to the responsible user (técnico = usuário). */
+    @Column(name = "tecnico_id")
+    private Long tecnicoId;
+
     @Column(length = 500)
     private String descricao;
+
+    /** Labor time in minutes (for cost/throughput metrics). */
+    @Column(name = "tempo_execucao_minutos")
+    private Integer tempoExecucaoMinutos;
+
+    /** Labor cost for this work order. Parts cost lives in ManutencaoPeca. */
+    @Column(name = "custo_mao_obra")
+    private Double custoMaoObra;
+
+    /** When the work order was opened (for MTTR = conclusao - abertura). */
+    @Column(name = "data_abertura")
+    private LocalDate dataAbertura;
+
+    @Column(name = "data_conclusao")
+    private LocalDate dataConclusao;
 
     @ManyToMany
     @JoinTable(
@@ -121,6 +140,21 @@ public class Manutencao {
     public void setDescricao(String descricao) {
         this.descricao = descricao;
     }
+
+    public Long getTecnicoId() { return tecnicoId; }
+    public void setTecnicoId(Long tecnicoId) { this.tecnicoId = tecnicoId; }
+
+    public Integer getTempoExecucaoMinutos() { return tempoExecucaoMinutos; }
+    public void setTempoExecucaoMinutos(Integer tempoExecucaoMinutos) { this.tempoExecucaoMinutos = tempoExecucaoMinutos; }
+
+    public Double getCustoMaoObra() { return custoMaoObra; }
+    public void setCustoMaoObra(Double custoMaoObra) { this.custoMaoObra = custoMaoObra; }
+
+    public LocalDate getDataAbertura() { return dataAbertura; }
+    public void setDataAbertura(LocalDate dataAbertura) { this.dataAbertura = dataAbertura; }
+
+    public LocalDate getDataConclusao() { return dataConclusao; }
+    public void setDataConclusao(LocalDate dataConclusao) { this.dataConclusao = dataConclusao; }
 
     public String getPrioridade() {
         return prioridade;
