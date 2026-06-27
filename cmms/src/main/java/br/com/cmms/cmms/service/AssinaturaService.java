@@ -36,13 +36,16 @@ public class AssinaturaService {
     private final AssinaturaRepository assinaturaRepo;
     private final MaquinaRepository maquinaRepo;
     private final UsuarioRepository usuarioRepo;
+    private final PagamentoService pagamentoService;
 
     public AssinaturaService(AssinaturaRepository assinaturaRepo,
                              MaquinaRepository maquinaRepo,
-                             UsuarioRepository usuarioRepo) {
+                             UsuarioRepository usuarioRepo,
+                             PagamentoService pagamentoService) {
         this.assinaturaRepo = assinaturaRepo;
         this.maquinaRepo = maquinaRepo;
         this.usuarioRepo = usuarioRepo;
+        this.pagamentoService = pagamentoService;
     }
 
     /** Static catalog of plans for the pricing grid (ordered). */
@@ -64,13 +67,27 @@ public class AssinaturaService {
         Plano plano = parsePlano(planoNome);
         Assinatura a = ensureForEmpresa(empresaId);
         a.setPlano(plano.name());
-        // No gateway yet: activate manually so the workspace is usable.
+
+        String link = pagamentoService.criarLinkPagamento(empresaId, plano);
+        if (link.isBlank()) {
+            // No gateway configured: activate manually so the workspace is usable.
+            a.setStatus(Assinatura.ATIVA);
+            a.setDataProximaCobranca(LocalDate.now().plusDays(BILLING_CYCLE_DAYS));
+        }
+        // With a gateway: keep the current status until the payment webhook confirms.
+        assinaturaRepo.save(a);
+        log.info("Checkout empresa={} plano={} (gateway={})", empresaId, plano, !link.isBlank());
+        return new CheckoutResultDTO(AssinaturaInfoDTO.from(a), link);
+    }
+
+    /** Called by the payment webhook once a payment is confirmed. */
+    @Transactional
+    public void confirmarPagamento(Long empresaId) {
+        Assinatura a = ensureForEmpresa(empresaId);
         a.setStatus(Assinatura.ATIVA);
         a.setDataProximaCobranca(LocalDate.now().plusDays(BILLING_CYCLE_DAYS));
         assinaturaRepo.save(a);
-        log.info("Checkout empresa={} plano={}", empresaId, plano);
-        // linkPagamento empty → frontend shows the "configure gateway" notice.
-        return new CheckoutResultDTO(AssinaturaInfoDTO.from(a), "");
+        log.info("Pagamento confirmado empresa={} -> ATIVA", empresaId);
     }
 
     @Transactional

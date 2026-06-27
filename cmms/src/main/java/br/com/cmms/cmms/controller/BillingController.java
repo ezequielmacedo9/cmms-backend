@@ -5,15 +5,20 @@ import br.com.cmms.cmms.dto.CheckoutResultDTO;
 import br.com.cmms.cmms.dto.PlanoInfoDTO;
 import br.com.cmms.cmms.security.TenantResolver;
 import br.com.cmms.cmms.service.AssinaturaService;
+import br.com.cmms.cmms.service.PagamentoService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
@@ -30,11 +35,16 @@ import java.util.Map;
 @Tag(name = "Assinatura")
 public class BillingController {
 
+    private static final Logger log = LoggerFactory.getLogger(BillingController.class);
+
     private final AssinaturaService assinaturaService;
+    private final PagamentoService pagamentoService;
     private final TenantResolver tenant;
 
-    public BillingController(AssinaturaService assinaturaService, TenantResolver tenant) {
+    public BillingController(AssinaturaService assinaturaService, PagamentoService pagamentoService,
+                            TenantResolver tenant) {
         this.assinaturaService = assinaturaService;
+        this.pagamentoService = pagamentoService;
         this.tenant = tenant;
     }
 
@@ -71,6 +81,34 @@ public class BillingController {
     public ResponseEntity<Void> cancelar() {
         assinaturaService.cancelar(tenant.requireEmpresaId());
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/webhook")
+    @SecurityRequirements
+    @Operation(summary = "Webhook de pagamento (Asaas)",
+        description = "Recebido pelo gateway. Em PAYMENT_CONFIRMED/RECEIVED ativa a assinatura "
+                    + "da empresa (externalReference). Protegido por token compartilhado.")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Void> webhook(
+            @RequestHeader(value = "asaas-access-token", required = false) String token,
+            @RequestBody Map<String, Object> payload) {
+        if (!pagamentoService.webhookAutorizado(token)) {
+            return ResponseEntity.status(401).build();
+        }
+        String event = String.valueOf(payload.get("event"));
+        Object pgto = payload.get("payment");
+        if (("PAYMENT_CONFIRMED".equals(event) || "PAYMENT_RECEIVED".equals(event))
+                && pgto instanceof Map<?, ?> payment) {
+            Object ref = ((Map<String, Object>) payment).get("externalReference");
+            if (ref != null) {
+                try {
+                    assinaturaService.confirmarPagamento(Long.parseLong(ref.toString()));
+                } catch (NumberFormatException e) {
+                    log.warn("Webhook com externalReference inválido: {}", ref);
+                }
+            }
+        }
+        return ResponseEntity.ok().build();
     }
 
     public record PlanoRequest(@NotBlank String plano) {}

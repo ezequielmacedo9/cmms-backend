@@ -29,6 +29,7 @@ class AssinaturaServiceTest {
     @Mock AssinaturaRepository assinaturaRepo;
     @Mock MaquinaRepository maquinaRepo;
     @Mock UsuarioRepository usuarioRepo;
+    @Mock PagamentoService pagamentoService;
     @InjectMocks AssinaturaService service;
 
     private static Assinatura comPlano(String plano, String status) {
@@ -73,12 +74,26 @@ class AssinaturaServiceTest {
         Assinatura a = comPlano("STARTER", "TRIAL");
         when(assinaturaRepo.findByEmpresaId(1L)).thenReturn(Optional.of(a));
         when(assinaturaRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+        // Gateway desligado -> link vazio -> ativacao manual.
+        when(pagamentoService.criarLinkPagamento(anyLong(), any())).thenReturn("");
 
         var res = service.checkout(1L, "PRO");
 
         assertThat(res.assinatura().plano()).isEqualTo("PRO");
         assertThat(res.assinatura().status()).isEqualTo("ATIVA");
         assertThat(res.linkPagamento()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("confirmarPagamento: ativa a assinatura da empresa")
+    void confirmarPagamento_ativa() {
+        Assinatura a = comPlano("PRO", "TRIAL");
+        when(assinaturaRepo.findByEmpresaId(1L)).thenReturn(Optional.of(a));
+        when(assinaturaRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.confirmarPagamento(1L);
+
+        assertThat(a.getStatus()).isEqualTo("ATIVA");
     }
 
     @Test

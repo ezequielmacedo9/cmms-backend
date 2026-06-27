@@ -126,6 +126,7 @@ public class SecurityConfig {
                     "/api/auth/forgot-password",
                     "/api/auth/reset-password",
                     "/api/auth/validate-reset-token",
+                    "/api/billing/webhook",
                     "/error",
                     "/ping",
                     "/h2-console/**",
