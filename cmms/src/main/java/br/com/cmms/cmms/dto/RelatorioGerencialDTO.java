@@ -18,6 +18,8 @@ public record RelatorioGerencialDTO(
     double cumprimentoPreventivaPct,
     double disponibilidade,
     double mtbfDias,
+    double mttrDias,
+    double custoTotalManutencoes,
     double valorTotalEstoque,
     List<Ofensor> topOfensores
 ) {

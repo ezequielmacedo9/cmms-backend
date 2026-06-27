@@ -3,10 +3,13 @@ package br.com.cmms.cmms.service;
 import br.com.cmms.cmms.dto.DashboardStatsDTO;
 import br.com.cmms.cmms.dto.RelatorioGerencialDTO;
 import br.com.cmms.cmms.model.Peca;
+import br.com.cmms.cmms.repository.ManutencaoPecaRepository;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
 import br.com.cmms.cmms.repository.PecaRepository;
 import br.com.cmms.cmms.security.TenantResolver;
+
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,7 @@ class RelatorioGerencialServiceTest {
     @Mock DashboardService dashboardService;
     @Mock MaquinaRepository maquinaRepository;
     @Mock ManutencaoRepository manutencaoRepository;
+    @Mock ManutencaoPecaRepository manutencaoPecaRepository;
     @Mock PecaRepository pecaRepository;
     @Mock TenantResolver tenant;
     @InjectMocks RelatorioGerencialService service;
@@ -58,6 +62,14 @@ class RelatorioGerencialServiceTest {
         when(manutencaoRepository.findTopOfensores(1L)).thenReturn(List.of(
             new Object[]{ 1L, "Torno", 5L },
             new Object[]{ 2L, "Prensa", 3L }));
+        // Custo total = peças (100) + mão de obra (50) = 150.
+        when(manutencaoPecaRepository.sumCustoByEmpresa(1L)).thenReturn(100.0);
+        when(manutencaoRepository.sumCustoMaoObraByEmpresa(1L)).thenReturn(50.0);
+        // MTTR = média de (10, 4) dias = 7.
+        LocalDate hoje = LocalDate.now();
+        when(manutencaoRepository.findConcluidasDatas(1L)).thenReturn(List.of(
+            new Object[]{ hoje.minusDays(10), hoje },
+            new Object[]{ hoje.minusDays(4), hoje }));
 
         RelatorioGerencialDTO out = service.gerar();
 
@@ -70,6 +82,8 @@ class RelatorioGerencialServiceTest {
         assertThat(out.disponibilidade()).isEqualTo(80.0);
         assertThat(out.mtbfDias()).isEqualTo(15.0);
         assertThat(out.valorTotalEstoque()).isEqualTo(50.0);
+        assertThat(out.custoTotalManutencoes()).isEqualTo(150.0);
+        assertThat(out.mttrDias()).isEqualTo(7.0);
         assertThat(out.topOfensores()).hasSize(2);
         assertThat(out.topOfensores().get(0).maquinaNome()).isEqualTo("Torno");
         assertThat(out.topOfensores().get(0).corretivas()).isEqualTo(5);
@@ -82,11 +96,16 @@ class RelatorioGerencialServiceTest {
         when(maquinaRepository.findPreventiveCandidates(1L)).thenReturn(List.of());
         when(pecaRepository.findByEmpresaId(1L)).thenReturn(List.of());
         when(manutencaoRepository.findTopOfensores(1L)).thenReturn(List.of());
+        when(manutencaoPecaRepository.sumCustoByEmpresa(1L)).thenReturn(0.0);
+        when(manutencaoRepository.sumCustoMaoObraByEmpresa(1L)).thenReturn(0.0);
+        when(manutencaoRepository.findConcluidasDatas(1L)).thenReturn(List.of());
 
         RelatorioGerencialDTO out = service.gerar();
 
         assertThat(out.cumprimentoPreventivaPct()).isEqualTo(100.0);
         assertThat(out.valorTotalEstoque()).isZero();
+        assertThat(out.custoTotalManutencoes()).isZero();
+        assertThat(out.mttrDias()).isZero();
         assertThat(out.topOfensores()).isEmpty();
     }
 
