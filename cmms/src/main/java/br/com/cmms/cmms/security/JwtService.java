@@ -3,7 +3,6 @@ package br.com.cmms.cmms.security;
 import br.com.cmms.cmms.model.Usuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,11 +56,11 @@ public class JwtService {
 
     public String gerarToken(Usuario usuario) {
         return Jwts.builder()
-                .setSubject(usuario.getEmail())
+                .subject(usuario.getEmail())
                 .claim("role", usuario.getRole().getNome())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignKey(), SignatureAlgorithm.HS256)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSignKey())
                 .compact();
     }
 
@@ -75,11 +74,11 @@ public class JwtService {
 
     private Claims extrairClaims(String token) {
         try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(getSignKey())
+            return Jwts.parser()
+                    .verifyWith(getSignKey())
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (Exception e) {
             log.debug("JWT validation failed: {}", e.getMessage());
             throw e;
