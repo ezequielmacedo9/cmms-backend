@@ -34,30 +34,35 @@
 - **FASE A (multi-tenancy)** — SaaS multi-empresa row-based: entidade `Empresa` + `empresa_id` em maquinas/manutencoes/pecas/ferramentas/usuario; `TenantResolver`; todo repo/service/dashboard/relatório/auditoria escopado por empresa (IDOR fechado no get-by-id); cadastro self-service `POST /api/auth/register` (empresa + admin) + página `/cadastro`; login Google provisiona empresa própria; Flyway V4 com backfill; teste de integração de isolamento
 - **FASE B (billing, sem gateway)** — Enum `Plano` (STARTER/PRO/BUSINESS/ENTERPRISE), entidade `Assinatura` (1 por empresa) + Flyway V5 (backfill TRIAL); `BillingController` casando com o contrato que o frontend já consome (`/planos`, `/minha`, `/checkout`, `/upgrade`, `/cancelar`); enforcement de quota de plano em máquinas/usuários; checkout ativa o plano sem gateway (linkPagamento vazio). Frontend já estava pronto
 - **FASE C (CI/CD + observabilidade + authz)** — GitHub Actions (build+test gate) nos 2 repos; `AuthorizationIntegrationTest` (matriz de roles por HTTP: VISUALIZADOR não escreve, GESTOR não deleta, anônimo barrado); Sentry no backend (`sentry-spring-boot-starter-jakarta`) e no frontend (`@sentry/browser`, lazy), ambos no-op sem DSN; corrigido o drift de patch dos pacotes `@angular/*` (animations/service-worker realinhados a 21.2.1, `npm ci` volta a funcionar)
-- **FASE E (relatórios gerenciais)** — `GET /api/relatorios/gerencial` (GESTOR+) com cumprimento de preventiva, MTBF, disponibilidade, valor de estoque e top ofensores (escopado por empresa); corrigido bug do **PDF que truncava em 1 página** (agora pagina A4 com cabeçalho repetido + rodapé numerado); seção "Visão gerencial" no frontend. KPIs de custo/MTTR/disponibilidade-real dependem da FASE D
+- **FASE E (relatórios gerenciais)** — `GET /api/relatorios/gerencial` (GESTOR+) com cumprimento de preventiva, MTBF, disponibilidade, valor de estoque e top ofensores (escopado por empresa); corrigido bug do **PDF que truncava em 1 página** (agora pagina A4 com cabeçalho repetido + rodapé numerado); seção "Visão gerencial" no frontend
+- **FASE D (ordem de serviço)** — `Manutencao` enriquecida (tecnicoId, tempoExecucaoMinutos, custoMaoObra, dataAbertura/Conclusao) + entidade `ManutencaoPeca` (peça consumida com qtd + snapshot de custo) que **dá baixa no estoque**; workflow de status `PUT /api/manutencoes/{id}/status` (carimba conclusão); Flyway V6; relatórios passam a ter **custo de manutenção** e **MTTR**; frontend: form de OS (tempo/custo/peças) + ação "Concluir"
+- **FASE B.2 (gateway de pagamento)** — `PagamentoService` integra Asaas (link recorrente) quando `ASAAS_API_KEY` está setada; sem chave é no-op (ativação manual). `POST /api/billing/webhook` (público, token) confirma o pagamento e ativa a assinatura
+- **FASE F (UX mobile)** — tabelas viram cards no mobile (≤700px) via CSS global, sem scroll horizontal nas 4 listas
+- **Hardening** — upgrade jjwt 0.11.5 → 0.12.6 (API atual, sem deprecadas)
 
 **Estado atual:**
-- Backend: 100 testes, BUILD SUCCESS, zero warnings, HEAD `8564c6b` (relatórios gerenciais + PDF)
-- Frontend: 45 testes, prod build 489kB, zero warnings, HEAD `487fc6f` (visão gerencial)
-- Pendências resolvidas: CSS morto removido; SW não intercepta `/api/`; drift @angular/* corrigido; CI sem `--legacy-peer-deps`; PDF multipágina
+- Backend: 105 testes, BUILD SUCCESS, zero warnings, HEAD `e9f5c06`
+- Frontend: 45 testes, prod build 490kB, zero warnings, HEAD `7cbc1a0`
+- Resolvidas: CSS morto; SW /api; drift @angular/*; CI sem `--legacy-peer-deps`; PDF multipágina; custo/MTTR; jjwt
 
 ---
 
-## ⏳ Pendências
+## ⏳ Backlog (precisa de sistemas/credenciais externas ou é polish grande)
 
-### FASE B.2 — Gateway de pagamento (Asaas/Stripe)
-- `checkout` hoje ativa o plano manualmente (linkPagamento vazio). Plugar gateway: gerar link real + webhook que confirma pagamento (ATIVA só após webhook); config de chave por env
-- Tornar `ConfiguracaoSistema` por-empresa (hoje global — bleed cosmético de nome/timezone entre tenants)
-- (Opcional) gate de acesso por trial expirado/inadimplente nas escritas
+### Precisa de recurso externo (não dá pra finalizar autonomamente)
+- **Pagamento real**: precisa de conta + `ASAAS_API_KEY`/webhook token (integração já escrita, no-op sem chave)
+- **Sentry ativo**: precisa de DSN (`SENTRY_DSN`) — SDK já plugado nos 2 repos
+- **IoT/sensores, ERP (SAP/TOTVS), app mobile nativo**: sistemas/hardware/codebase externos
+- **SLA 99,9% + backup automatizado**: decisões de infra + tiers pagos (Render/Postgres)
 
-
-### FASE 10.2 — Integration tests endpoints (PRIORIDADE ALTA)
-- `MaquinaControllerIntegrationTest`, `ManutencaoControllerIntegrationTest`, `PecaControllerIntegrationTest`
-- `@SpringBootTest + MockMvc + token JWT real`
+### Polish grande (vertical/refactor dedicado)
+- **FASE D.2**: checklist + anexos da OS (anexos = upload base64/blob + UI)
+- **2FA obrigatório no login**: flag `seguranca.2fa.obrigatorio` ainda não força o fluxo (mudança de contrato front+back)
+- **ConfiguracaoSistema por-empresa**: hoje global (bleed cosmético) — refactor de PK + escopo
+- **i18n** (pt/en/es); **reactive forms** + validação inline; **ler QR para abrir ativo** (lib de câmera)
 
 ### FASE 10.3 — Cobertura 80%
-- Atual: 42.5%
-- Gaps: RelatorioService (1%), TotpService (1%), GoogleAuthService (13%), EmailService (8%), controllers HTTP (10-40%)
+- Subiu bastante com os testes de integração (multi-tenant, authz, billing, relatórios) e unitários novos; medir JaCoCo atualizado
 
 ### Lighthouse 90+
 - Otimizações aplicadas mas score não medido em produção
@@ -77,25 +82,24 @@ Backend: https://github.com/ezequielmacedo9/cmms-backend (Spring Boot 3.5.9 + Ja
 Frontend: https://github.com/ezequielmacedo9/cmms-frontend (Angular 21 + standalone + signals)
 Paths: C:\Users\USER\cmms-backend e C:\Users\USER\cmms-frontend
 
-ESTADO: 100 testes backend (HEAD 8564c6b), 45 frontend (HEAD 487fc6f), BUILD SUCCESS, zero warnings.
+ESTADO: 105 testes backend (HEAD e9f5c06), 45 frontend (HEAD 7cbc1a0), BUILD SUCCESS, zero warnings.
 
-FASES 11, A (multi-tenancy), B (billing sem gateway), C (CI/CD + observabilidade) e E
-(relatorios gerenciais) CONCLUIDAS:
-- FASE 11 (frontend): TableState, ExportService, ConfirmDialogService, tour, ShortcutsHelp.
-- FASE A: SaaS multi-empresa (Empresa + empresa_id, TenantResolver, tudo escopado, IDOR
-  fechado, cadastro POST /api/auth/register + /cadastro, Flyway V4, MultiTenantIsolationTest).
-- FASE B (backend): Plano + Assinatura + Flyway V5; BillingController; quota de plano;
-  checkout sem gateway (link vazio).
-- FASE C: GitHub Actions (build+test) nos 2 repos; AuthorizationIntegrationTest (matriz de
-  roles); Sentry no backend e frontend (no-op sem DSN); drift @angular/* corrigido.
-- FASE E: GET /api/relatorios/gerencial (cumprimento preventiva, MTBF, disponibilidade, valor
-  de estoque, top ofensores); PDF de relatorio agora pagina (nao trunca); secao "Visao
-  gerencial" no frontend.
+ROADMAP IMPLEMENTAVEL CONCLUIDO. Fases entregues (todas com build verde + push):
+- FASE 11: TableState/ExportService/ConfirmDialog/tour/ShortcutsHelp.
+- FASE A: multi-tenancy (Empresa + empresa_id, TenantResolver, tudo escopado, IDOR fechado,
+  cadastro self-service, Flyway V4, teste de isolamento).
+- FASE B + B.2: billing (Plano/Assinatura, BillingController, quota) + gateway Asaas + webhook.
+- FASE C: CI/CD (GitHub Actions) nos 2 repos, Sentry back+front, testes authz/IDOR, fix drift Angular.
+- FASE D: ordem de servico (status, tecnico=usuario, tempo/custo, baixa de estoque via
+  ManutencaoPeca, Flyway V6) -> destravou custo/MTTR nos relatorios.
+- FASE E: relatorios gerenciais + PDF multipagina.
+- FASE F: tabelas responsivas (cards no mobile).
+- Hardening: jjwt 0.12.6.
 
-PROXIMA FASE — opcoes: FASE D (Ordem de Servico real: workflow/tecnico=usuario/anexos/
-checklist/baixa de estoque/custo+tempo) que tambem destrava os KPIs de custo/MTTR/
-disponibilidade; FASE B.2 (gateway Asaas/Stripe + webhook); FASE F (UX mobile: tabelas em
-cards, reactive forms, abrir ativo por QR). Confirme antes de comecar.
+BACKLOG (precisa de credencial/sistema externo OU e polish grande): pagamento real
+(ASAAS_API_KEY), Sentry ativo (DSN), IoT/ERP/app nativo, SLA/backup (infra paga); D.2
+(checklist+anexos), 2FA obrigatorio no login, ConfiguracaoSistema por-empresa, i18n,
+reactive forms, QR-scan. Detalhes na secao Backlog acima.
 
 Leia AGENTS.md. Build verde obrigatório antes de push. Commits granulares em ASCII
 via git commit -F C:\WINDOWS\TEMP\opencode\commit-msg.txt. Push ao final de cada fase.
