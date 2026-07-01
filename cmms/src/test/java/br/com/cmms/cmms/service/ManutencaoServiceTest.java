@@ -5,9 +5,12 @@ import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.exception.ValidationException;
 import br.com.cmms.cmms.model.Manutencao;
+import br.com.cmms.cmms.model.ManutencaoChecklistItem;
 import br.com.cmms.cmms.model.ManutencaoPeca;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.model.Peca;
+import br.com.cmms.cmms.repository.ManutencaoAnexoRepository;
+import br.com.cmms.cmms.repository.ManutencaoChecklistRepository;
 import br.com.cmms.cmms.repository.ManutencaoPecaRepository;
 import br.com.cmms.cmms.repository.ManutencaoRepository;
 import br.com.cmms.cmms.repository.MaquinaRepository;
@@ -45,6 +48,8 @@ class ManutencaoServiceTest {
     @Mock MaquinaRepository    maquinaRepository;
     @Mock PecaRepository       pecaRepository;
     @Mock ManutencaoPecaRepository manutencaoPecaRepository;
+    @Mock ManutencaoChecklistRepository checklistRepository;
+    @Mock ManutencaoAnexoRepository anexoRepository;
     @Mock TenantResolver       tenant;
     @InjectMocks ManutencaoService manutencaoService;
 
@@ -55,6 +60,8 @@ class ManutencaoServiceTest {
     void setUp() {
         lenient().when(tenant.requireEmpresaId()).thenReturn(1L);
         lenient().when(manutencaoPecaRepository.findByManutencaoId(anyLong())).thenReturn(List.of());
+        lenient().when(checklistRepository.findByManutencaoIdOrderById(anyLong())).thenReturn(List.of());
+        lenient().when(anexoRepository.findMetaByManutencaoId(anyLong())).thenReturn(List.of());
         maquina = new Maquina();
         ReflectionTestUtils.setField(maquina, "id", 1L);
         maquina.setNome("Torno");
@@ -223,5 +230,24 @@ class ManutencaoServiceTest {
         assertThatThrownBy(() -> manutencaoService.alterarStatus(10L, "XPTO"))
             .isInstanceOf(ValidationException.class)
             .extracting("errorCode").isEqualTo("INVALID_STATUS");
+    }
+
+    @Test
+    @DisplayName("addChecklistItem: salva o item na OS da empresa")
+    void addChecklistItem_salva() {
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
+
+        manutencaoService.addChecklistItem(10L, "Trocar filtro");
+
+        verify(checklistRepository).save(any(ManutencaoChecklistItem.class));
+    }
+
+    @Test
+    @DisplayName("addAnexo: base64 acima do limite lanca ANEXO_MUITO_GRANDE")
+    void addAnexo_muitoGrande() {
+        String grande = "a".repeat(4_000_001);
+        assertThatThrownBy(() -> manutencaoService.addAnexo(10L, "foto.png", "image/png", grande))
+            .isInstanceOf(ValidationException.class)
+            .extracting("errorCode").isEqualTo("ANEXO_MUITO_GRANDE");
     }
 }

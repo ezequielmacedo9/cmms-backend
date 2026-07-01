@@ -1,5 +1,6 @@
 package br.com.cmms.cmms.controller;
 
+import br.com.cmms.cmms.dto.AnexoDownloadDTO;
 import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.dto.PagedResponseDTO;
@@ -100,5 +101,54 @@ public class ManutencaoController {
         return ResponseEntity.noContent().build();
     }
 
+    // ── checklist ──────────────────────────────────────────────────────
+
+    @PostMapping("/{id}/checklist")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
+    @Operation(summary = "Adicionar item de checklist à OS")
+    public ResponseEntity<ManutencaoResponseDTO> addChecklist(
+            @PathVariable Long id, @Valid @RequestBody ChecklistRequest body) {
+        return ResponseEntity.ok(manutencaoService.addChecklistItem(id, body.descricao()));
+    }
+
+    @PutMapping("/checklist/{itemId}/toggle")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
+    @Operation(summary = "Marcar/desmarcar item de checklist")
+    public ResponseEntity<ManutencaoResponseDTO> toggleChecklist(@PathVariable Long itemId) {
+        return ResponseEntity.ok(manutencaoService.toggleChecklistItem(itemId));
+    }
+
+    @DeleteMapping("/checklist/{itemId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Remover item de checklist")
+    public ResponseEntity<ManutencaoResponseDTO> removeChecklist(@PathVariable Long itemId) {
+        return ResponseEntity.ok(manutencaoService.removeChecklistItem(itemId));
+    }
+
+    // ── anexos ─────────────────────────────────────────────────────────
+
+    @PostMapping("/{id}/anexos")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
+    @Operation(summary = "Anexar arquivo (base64) à OS")
+    public ResponseEntity<ManutencaoResponseDTO> addAnexo(
+            @PathVariable Long id, @Valid @RequestBody AnexoRequest body) {
+        return ResponseEntity.ok(manutencaoService.addAnexo(id, body.nome(), body.contentType(), body.dadosBase64()));
+    }
+
+    @GetMapping("/anexos/{anexoId}")
+    @Operation(summary = "Baixar anexo (base64)")
+    public ResponseEntity<AnexoDownloadDTO> getAnexo(@PathVariable Long anexoId) {
+        return ResponseEntity.ok(manutencaoService.getAnexo(anexoId));
+    }
+
+    @DeleteMapping("/anexos/{anexoId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR')")
+    @Operation(summary = "Remover anexo")
+    public ResponseEntity<ManutencaoResponseDTO> removeAnexo(@PathVariable Long anexoId) {
+        return ResponseEntity.ok(manutencaoService.removeAnexo(anexoId));
+    }
+
     public record StatusRequest(@NotBlank String status) {}
+    public record ChecklistRequest(@NotBlank String descricao) {}
+    public record AnexoRequest(@NotBlank String nome, String contentType, @NotBlank String dadosBase64) {}
 }

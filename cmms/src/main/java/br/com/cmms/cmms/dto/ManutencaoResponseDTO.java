@@ -19,10 +19,17 @@ public record ManutencaoResponseDTO(
     double custoPecas,
     double custoTotal,
     List<PecaConsumida> pecas,
+    List<ChecklistItem> checklist,
+    List<Anexo> anexos,
     MaquinaInfo maquina
 ) {
     public record MaquinaInfo(Long id, String nome, String setor) {}
 
     public record PecaConsumida(Long pecaId, String pecaNome, int quantidade,
                                 double custoUnitario, double subtotal) {}
+
+    public record ChecklistItem(Long id, String descricao, boolean concluido) {}
+
+    /** Attachment metadata (no bytes). Download via GET /api/manutencoes/anexos/{id}. */
+    public record Anexo(Long id, String nome, String contentType, int tamanho) {}
 }
