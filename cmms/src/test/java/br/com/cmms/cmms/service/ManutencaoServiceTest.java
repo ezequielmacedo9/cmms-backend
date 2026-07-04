@@ -4,7 +4,9 @@ import br.com.cmms.cmms.dto.ManutencaoRequestDTO;
 import br.com.cmms.cmms.dto.ManutencaoResponseDTO;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.exception.ValidationException;
+import br.com.cmms.cmms.dto.AnexoDownloadDTO;
 import br.com.cmms.cmms.model.Manutencao;
+import br.com.cmms.cmms.model.ManutencaoAnexo;
 import br.com.cmms.cmms.model.ManutencaoChecklistItem;
 import br.com.cmms.cmms.model.ManutencaoPeca;
 import br.com.cmms.cmms.model.Maquina;
@@ -249,5 +251,78 @@ class ManutencaoServiceTest {
         assertThatThrownBy(() -> manutencaoService.addAnexo(10L, "foto.png", "image/png", grande))
             .isInstanceOf(ValidationException.class)
             .extracting("errorCode").isEqualTo("ANEXO_MUITO_GRANDE");
+    }
+
+    @Test
+    @DisplayName("addAnexo: vazio lanca ANEXO_VAZIO; happy path salva com tamanho aproximado")
+    void addAnexo_vazioEHappyPath() {
+        assertThatThrownBy(() -> manutencaoService.addAnexo(10L, "foto.png", "image/png", "  "))
+            .isInstanceOf(ValidationException.class)
+            .extracting("errorCode").isEqualTo("ANEXO_VAZIO");
+
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
+        manutencaoService.addAnexo(10L, "foto.png", "image/png", "QUJDRA=="); // "ABCD"
+
+        ArgumentCaptor<ManutencaoAnexo> saved = ArgumentCaptor.forClass(ManutencaoAnexo.class);
+        verify(anexoRepository).save(saved.capture());
+        assertThat(saved.getValue().getNome()).isEqualTo("foto.png");
+        assertThat(saved.getValue().getTamanho()).isEqualTo(6); // 8 chars * 3/4
+    }
+
+    @Test
+    @DisplayName("toggleChecklistItem: inverte concluido e devolve o detalhe da OS")
+    void toggleChecklistItem_inverte() {
+        ManutencaoChecklistItem item = new ManutencaoChecklistItem(1L, 10L, "Trocar filtro");
+        ReflectionTestUtils.setField(item, "id", 5L);
+        when(checklistRepository.findByIdAndEmpresaId(5L, 1L)).thenReturn(Optional.of(item));
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
+
+        ManutencaoResponseDTO out = manutencaoService.toggleChecklistItem(5L);
+
+        assertThat(item.isConcluido()).isTrue();
+        assertThat(out.id()).isEqualTo(10L);
+        verify(checklistRepository).save(item);
+    }
+
+    @Test
+    @DisplayName("removeChecklistItem: deleta o item e devolve o detalhe")
+    void removeChecklistItem_deleta() {
+        ManutencaoChecklistItem item = new ManutencaoChecklistItem(1L, 10L, "Trocar filtro");
+        ReflectionTestUtils.setField(item, "id", 5L);
+        when(checklistRepository.findByIdAndEmpresaId(5L, 1L)).thenReturn(Optional.of(item));
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
+
+        manutencaoService.removeChecklistItem(5L);
+
+        verify(checklistRepository).delete(item);
+    }
+
+    @Test
+    @DisplayName("getAnexo: devolve payload completo; id de outro tenant vira 404")
+    void getAnexo_downloadEDelete() {
+        ManutencaoAnexo anexo = new ManutencaoAnexo(1L, 10L, "foto.png", "image/png", 6, "QUJDRA==");
+        ReflectionTestUtils.setField(anexo, "id", 7L);
+        when(anexoRepository.findByIdAndEmpresaId(7L, 1L)).thenReturn(Optional.of(anexo));
+        when(anexoRepository.findByIdAndEmpresaId(99L, 1L)).thenReturn(Optional.empty());
+
+        AnexoDownloadDTO dto = manutencaoService.getAnexo(7L);
+        assertThat(dto.nome()).isEqualTo("foto.png");
+        assertThat(dto.dadosBase64()).isEqualTo("QUJDRA==");
+
+        assertThatThrownBy(() -> manutencaoService.getAnexo(99L))
+            .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("removeAnexo: deleta e devolve o detalhe da OS")
+    void removeAnexo_deleta() {
+        ManutencaoAnexo anexo = new ManutencaoAnexo(1L, 10L, "foto.png", "image/png", 6, "QUJDRA==");
+        ReflectionTestUtils.setField(anexo, "id", 7L);
+        when(anexoRepository.findByIdAndEmpresaId(7L, 1L)).thenReturn(Optional.of(anexo));
+        when(manutencaoRepository.findByIdAndEmpresaId(10L, 1L)).thenReturn(Optional.of(manutencao));
+
+        manutencaoService.removeAnexo(7L);
+
+        verify(anexoRepository).delete(anexo);
     }
 }
