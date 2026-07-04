@@ -8,23 +8,25 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
-public interface ConfiguracaoSistemaRepository extends JpaRepository<ConfiguracaoSistema, String> {
+public interface ConfiguracaoSistemaRepository extends JpaRepository<ConfiguracaoSistema, Long> {
 
-    List<ConfiguracaoSistema> findByGrupo(String grupo);
+    List<ConfiguracaoSistema> findByEmpresaId(Long empresaId);
 
-    /**
-     * Free-text search over {@code chave} and {@code descricao} with optional
-     * {@code grupo} filter. Both inputs accept {@code null} to skip the
-     * corresponding predicate.
-     */
+    Optional<ConfiguracaoSistema> findByEmpresaIdAndChave(Long empresaId, String chave);
+
+    boolean existsByEmpresaIdAndChave(Long empresaId, String chave);
+
     @Query("""
         SELECT c FROM ConfiguracaoSistema c
-        WHERE (:q     IS NULL OR LOWER(c.chave)     LIKE LOWER(CONCAT('%', :q, '%'))
+        WHERE c.empresaId = :empresaId
+          AND (:q     IS NULL OR LOWER(c.chave)     LIKE LOWER(CONCAT('%', :q, '%'))
                               OR LOWER(c.descricao) LIKE LOWER(CONCAT('%', :q, '%')))
           AND (:grupo IS NULL OR c.grupo = :grupo)
     """)
     Page<ConfiguracaoSistema> search(@Param("q") String q,
                                      @Param("grupo") String grupo,
+                                     @Param("empresaId") Long empresaId,
                                      Pageable pageable);
 }

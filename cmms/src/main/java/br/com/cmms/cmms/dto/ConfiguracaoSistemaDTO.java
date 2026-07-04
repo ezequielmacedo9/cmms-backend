@@ -6,9 +6,9 @@ import br.com.cmms.cmms.model.ConfiguracaoSistema;
  * Read/write representation of a single system-configuration entry.
  *
  * <p>The {@code descricao} and {@code tipo} fields are derived from the seed
- * catalog (see {@code ConfiguracaoService.seed()}) — the API never lets the
- * client invent new keys or change types, only update values of existing
- * entries.
+ * catalog (see {@code ConfiguracaoService.seedForEmpresa(Long)}) — the API
+ * never lets the client invent new keys or change types, only update values
+ * of existing entries. Every entry is scoped to the caller's empresa.
  */
 public record ConfiguracaoSistemaDTO(
     String chave,

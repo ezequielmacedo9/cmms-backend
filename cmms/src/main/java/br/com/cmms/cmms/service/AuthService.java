@@ -150,11 +150,11 @@ public class AuthService {
 
     private void handleFailedAttempt(Usuario u, HttpServletRequest request) {
         int attempts = u.getFailedLoginAttempts() + 1;
-        int maxAttempts = config.getInt("seguranca.lockout.tentativas", DEFAULT_LOCKOUT_ATTEMPTS);
+        int maxAttempts = config.getInt(u.getEmpresaId(), "seguranca.lockout.tentativas", DEFAULT_LOCKOUT_ATTEMPTS);
         u.setFailedLoginAttempts(attempts);
         boolean lockedNow = false;
         if (attempts >= maxAttempts) {
-            int lockMinutes = config.getInt("seguranca.lockout.minutos", DEFAULT_LOCKOUT_MINUTES);
+            int lockMinutes = config.getInt(u.getEmpresaId(), "seguranca.lockout.minutos", DEFAULT_LOCKOUT_MINUTES);
             u.setLockedUntil(LocalDateTime.now().plusMinutes(lockMinutes));
             lockedNow = true;
             log.warn("Account locked: {} after {} attempts", u.getEmail(), attempts);

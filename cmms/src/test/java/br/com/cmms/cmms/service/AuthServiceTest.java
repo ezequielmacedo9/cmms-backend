@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -140,7 +141,7 @@ class AuthServiceTest {
     void login_badCredentials_incrementsCounter() {
         when(usuarioRepo.findByEmail(activeUser.getEmail())).thenReturn(Optional.of(activeUser));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("nope"));
-        when(config.getInt(eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
+        when(config.getInt(nullable(Long.class), eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
 
         assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "wrong", request))
             .isInstanceOf(UnauthorizedException.class)
@@ -161,8 +162,8 @@ class AuthServiceTest {
         activeUser.setFailedLoginAttempts(4); // 4 falhas anteriores, esta será a 5ª
         when(usuarioRepo.findByEmail(activeUser.getEmail())).thenReturn(Optional.of(activeUser));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("nope"));
-        when(config.getInt(eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
-        when(config.getInt(eq("seguranca.lockout.minutos"), anyInt())).thenReturn(15);
+        when(config.getInt(nullable(Long.class), eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
+        when(config.getInt(nullable(Long.class), eq("seguranca.lockout.minutos"), anyInt())).thenReturn(15);
 
         assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "wrong", request))
             .isInstanceOf(UnauthorizedException.class);
