@@ -3,6 +3,7 @@ package br.com.cmms.cmms.controller;
 import br.com.cmms.cmms.exception.NotFoundException;
 import br.com.cmms.cmms.model.Maquina;
 import br.com.cmms.cmms.repository.MaquinaRepository;
+import br.com.cmms.cmms.security.TenantResolver;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.client.j2se.MatrixToImageWriter;
@@ -26,11 +27,15 @@ import java.util.Map;
 public class QrCodeController {
 
     private final MaquinaRepository repo;
+    private final TenantResolver tenant;
 
     @Value("${app.frontend.url:https://cmms-frontend.vercel.app}")
     private String frontendUrl;
 
-    public QrCodeController(MaquinaRepository repo) { this.repo = repo; }
+    public QrCodeController(MaquinaRepository repo, TenantResolver tenant) {
+        this.repo = repo;
+        this.tenant = tenant;
+    }
 
     @GetMapping("/{id}/qrcode")
     @Operation(summary = "Gerar QR code da máquina",
@@ -39,7 +44,8 @@ public class QrCodeController {
             @PathVariable Long id,
             @Parameter(description = "Lado do QR em pixels (100..600).")
             @RequestParam(defaultValue = "200") int size) {
-        Maquina m = repo.findById(id)
+        // Tenant-scoped lookup: cross-tenant ids come back as 404 (no IDOR).
+        Maquina m = repo.findByIdAndEmpresaId(id, tenant.requireEmpresaId())
             .orElseThrow(() -> NotFoundException.of("Máquina", id));
 
         String content = frontendUrl + "/maquinas?id=" + id +
