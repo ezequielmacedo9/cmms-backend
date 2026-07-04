@@ -43,10 +43,11 @@
 - **ConfiguracaoSistema por-empresa** — PK surrogate + `empresa_id` com unique (empresa_id, chave), catálogo default semeado lazy por empresa; `get/getInt/getBool` recebem empresaId explícito (lockout roda antes da autenticação); Flyway V8 replica as linhas globais para cada empresa; fix no frontend: settings pede `unpaged=true`
 - **2FA obrigatório no login** — `LoginRequestDTO.totpCode` opcional; usuário com TOTP ativo: sem código → 401 `TOTP_REQUIRED`, código errado → 401 `TOTP_INVALID` (auditado); empresa com `seguranca.2fa.obrigatorio` e usuário sem adesão → `twoFactorSetupRequired=true` e o frontend redireciona a `/perfil?setup2fa=1`; login page revela campo do código quando o backend pede; `TotpServiceTest` novo (cross-check RFC 6238)
 - **QR code de máquina (deep-link)** — fechado IDOR no `QrCodeController` (agora `findByIdAndEmpresaId`); botão "QR code" na lista de máquinas baixa o PNG autenticado; o `?id=` do QR agora é consumido: abre a página com a máquina focada + histórico aberto
+- **FASE 10.3 (cobertura 80%) CONCLUÍDA** — JaCoCo 42.5% → **80.7%** de instruções, 148 testes. Novos: `OperationalFlowIntegrationTest` (perfil, 2FA E2E com código RFC 6238 real, checklist/anexos via HTTP, relatórios PDF/XLSX, QR), smoke dos geradores de relatório, `PasswordResetServiceTest`, `RefreshTokenServiceTest`, `EmailServiceTest`, `RateLimitFilterTest`, `NotificationServiceTest`. Bônus: o teste E2E pegou bug no frontend (envelope usa `code`, não `errorCode`) — corrigido
 
 **Estado atual:**
-- Backend: 119 testes, BUILD SUCCESS, zero warnings, HEAD `4571fc8`
-- Frontend: 11 suites verdes, prod build OK, zero warnings, HEAD `a2f71b0`
+- Backend: 148 testes, cobertura 80.7%, BUILD SUCCESS, zero warnings, HEAD `7b3c36d`
+- Frontend: 11 suites verdes, prod build OK, zero warnings, HEAD `867a3df`
 - Resolvidas: CSS morto; SW /api; drift @angular/*; CI sem `--legacy-peer-deps`; PDF multipágina; custo/MTTR; jjwt
 
 ---
@@ -62,9 +63,6 @@
 ### Polish grande (vertical/refactor dedicado)
 - **i18n** (pt/en/es); **reactive forms** + validação inline
 - **Scanner de QR in-app** (câmera via lib, ex.: @zxing/browser) — o fluxo via câmera nativa do celular já funciona (QR → URL → deep-link)
-
-### FASE 10.3 — Cobertura 80%
-- Subiu bastante com os testes de integração (multi-tenant, authz, billing, relatórios) e unitários novos; medir JaCoCo atualizado
 
 ### Lighthouse 90+
 - Otimizações aplicadas mas score não medido em produção
@@ -84,7 +82,7 @@ Backend: https://github.com/ezequielmacedo9/cmms-backend (Spring Boot 3.5.9 + Ja
 Frontend: https://github.com/ezequielmacedo9/cmms-frontend (Angular 21 + standalone + signals)
 Paths: C:\Users\USER\cmms-backend e C:\Users\USER\cmms-frontend
 
-ESTADO: 119 testes backend (HEAD 4571fc8), 11 suites frontend (HEAD a2f71b0), BUILD SUCCESS, zero warnings.
+ESTADO: 148 testes backend / cobertura 80.7% (HEAD 7b3c36d), 11 suites frontend (HEAD 867a3df), BUILD SUCCESS, zero warnings.
 
 ROADMAP IMPLEMENTAVEL CONCLUIDO. Fases entregues (todas com build verde + push):
 - FASE 11: TableState/ExportService/ConfirmDialog/tour/ShortcutsHelp.
@@ -101,10 +99,13 @@ ROADMAP IMPLEMENTAVEL CONCLUIDO. Fases entregues (todas com build verde + push):
 - ConfiguracaoSistema por-empresa (Flyway V8) + fix settings unpaged.
 - 2FA no login (TOTP_REQUIRED/TOTP_INVALID + twoFactorSetupRequired) front+back.
 - QR de maquina: IDOR fechado, botao de download, deep-link ?id= consumido.
+- FASE 10.3: cobertura JaCoCo 80.7% (era 42.5%), 148 testes, incl. integracao
+  E2E de perfil/2FA/OS/relatorios/QR.
 
 BACKLOG (precisa de credencial/sistema externo OU e polish grande): pagamento real
 (ASAAS_API_KEY), Sentry ativo (DSN), IoT/ERP/app nativo, SLA/backup (infra paga);
-i18n, reactive forms, scanner QR in-app (lib de camera). Detalhes na secao Backlog acima.
+i18n, reactive forms, scanner QR in-app (lib de camera), Lighthouse em prod.
+Detalhes na secao Backlog acima.
 
 Leia AGENTS.md. Build verde obrigatório antes de push. Commits granulares em ASCII
 via git commit -F C:\WINDOWS\TEMP\opencode\commit-msg.txt. Push ao final de cada fase.
