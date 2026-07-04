@@ -82,6 +82,12 @@ public class ManutencaoController {
         return ResponseEntity.ok(PagedResponseDTO.of(manutencaoService.listarPorMaquina(maquinaId, pageable)));
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "Detalhe da OS (com peças, checklist e anexos)")
+    public ResponseEntity<ManutencaoResponseDTO> buscarPorId(@PathVariable Long id) {
+        return ResponseEntity.ok(manutencaoService.buscarPorId(id));
+    }
+
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','GESTOR','TECNICO')")
     @Operation(summary = "Alterar o status da ordem de serviço",
