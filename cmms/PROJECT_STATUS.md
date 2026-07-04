@@ -39,10 +39,11 @@
 - **FASE B.2 (gateway de pagamento)** — `PagamentoService` integra Asaas (link recorrente) quando `ASAAS_API_KEY` está setada; sem chave é no-op (ativação manual). `POST /api/billing/webhook` (público, token) confirma o pagamento e ativa a assinatura
 - **FASE F (UX mobile)** — tabelas viram cards no mobile (≤700px) via CSS global, sem scroll horizontal nas 4 listas
 - **Hardening** — upgrade jjwt 0.11.5 → 0.12.6 (API atual, sem deprecadas)
+- **FASE D.2 (checklist + anexos da OS)** — entidades `ManutencaoChecklistItem` e `ManutencaoAnexo` (arquivo base64 no banco, ~3MB, escopo por empresa) + Flyway V7; endpoints: `GET /api/manutencoes/{id}` (detalhe completo), add/toggle/remove checklist, add/download/remove anexo (listagem usa projeção só de metadados — o blob só sai no download); frontend: modal "Detalhes" na lista de OS com checklist interativo e upload/download de anexos via FileReader/data-URI
 
 **Estado atual:**
-- Backend: 105 testes, BUILD SUCCESS, zero warnings, HEAD `e9f5c06`
-- Frontend: 45 testes, prod build 490kB, zero warnings, HEAD `7cbc1a0`
+- Backend: 107 testes, BUILD SUCCESS, zero warnings, HEAD `cca1bde`
+- Frontend: 11 suites verdes, prod build OK, zero warnings, HEAD `c06bd50`
 - Resolvidas: CSS morto; SW /api; drift @angular/*; CI sem `--legacy-peer-deps`; PDF multipágina; custo/MTTR; jjwt
 
 ---
@@ -56,7 +57,6 @@
 - **SLA 99,9% + backup automatizado**: decisões de infra + tiers pagos (Render/Postgres)
 
 ### Polish grande (vertical/refactor dedicado)
-- **FASE D.2**: checklist + anexos da OS (anexos = upload base64/blob + UI)
 - **2FA obrigatório no login**: flag `seguranca.2fa.obrigatorio` ainda não força o fluxo (mudança de contrato front+back)
 - **ConfiguracaoSistema por-empresa**: hoje global (bleed cosmético) — refactor de PK + escopo
 - **i18n** (pt/en/es); **reactive forms** + validação inline; **ler QR para abrir ativo** (lib de câmera)
@@ -82,7 +82,7 @@ Backend: https://github.com/ezequielmacedo9/cmms-backend (Spring Boot 3.5.9 + Ja
 Frontend: https://github.com/ezequielmacedo9/cmms-frontend (Angular 21 + standalone + signals)
 Paths: C:\Users\USER\cmms-backend e C:\Users\USER\cmms-frontend
 
-ESTADO: 105 testes backend (HEAD e9f5c06), 45 frontend (HEAD 7cbc1a0), BUILD SUCCESS, zero warnings.
+ESTADO: 107 testes backend (HEAD cca1bde), 11 suites frontend (HEAD c06bd50), BUILD SUCCESS, zero warnings.
 
 ROADMAP IMPLEMENTAVEL CONCLUIDO. Fases entregues (todas com build verde + push):
 - FASE 11: TableState/ExportService/ConfirmDialog/tour/ShortcutsHelp.
@@ -95,10 +95,11 @@ ROADMAP IMPLEMENTAVEL CONCLUIDO. Fases entregues (todas com build verde + push):
 - FASE E: relatorios gerenciais + PDF multipagina.
 - FASE F: tabelas responsivas (cards no mobile).
 - Hardening: jjwt 0.12.6.
+- FASE D.2: checklist + anexos (base64) da OS, Flyway V7, modal de detalhe no frontend.
 
 BACKLOG (precisa de credencial/sistema externo OU e polish grande): pagamento real
-(ASAAS_API_KEY), Sentry ativo (DSN), IoT/ERP/app nativo, SLA/backup (infra paga); D.2
-(checklist+anexos), 2FA obrigatorio no login, ConfiguracaoSistema por-empresa, i18n,
+(ASAAS_API_KEY), Sentry ativo (DSN), IoT/ERP/app nativo, SLA/backup (infra paga);
+2FA obrigatorio no login, ConfiguracaoSistema por-empresa, i18n,
 reactive forms, QR-scan. Detalhes na secao Backlog acima.
 
 Leia AGENTS.md. Build verde obrigatório antes de push. Commits granulares em ASCII
