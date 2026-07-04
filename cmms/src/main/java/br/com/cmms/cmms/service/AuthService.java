@@ -47,30 +47,39 @@ public class AuthService {
     private final UsuarioRepository usuarioRepo;
     private final ConfiguracaoService config;
     private final AuditService audit;
+    private final TotpService totpService;
 
     public AuthService(AuthenticationManager authenticationManager,
                        JwtService jwtService,
                        RefreshTokenService refreshTokenService,
                        UsuarioRepository usuarioRepo,
                        ConfiguracaoService config,
-                       AuditService audit) {
+                       AuditService audit,
+                       TotpService totpService) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.usuarioRepo = usuarioRepo;
         this.config = config;
         this.audit = audit;
+        this.totpService = totpService;
     }
 
     /**
      * Authenticates with email + password, applying lockout policy. Returns
      * a fresh {@link TokenResponseDTO} with access and refresh tokens.
      *
+     * <p><strong>2FA:</strong> when the user has TOTP enabled, a valid
+     * {@code totpCode} is required — a correct password alone returns
+     * {@code TOTP_REQUIRED} so the client can prompt for the code. When the
+     * empresa enforces 2FA ({@code seguranca.2fa.obrigatorio}) and the user
+     * hasn't enrolled, login succeeds with {@code twoFactorSetupRequired=true}.
+     *
      * @throws ForbiddenException    when the account is currently locked
      * @throws UnauthorizedException when the credentials don't match (or the user doesn't exist)
      */
     @Transactional
-    public TokenResponseDTO login(String email, String senha, HttpServletRequest request) {
+    public TokenResponseDTO login(String email, String senha, String totpCode, HttpServletRequest request) {
         log.info("Login attempt: {}", email);
         Optional<Usuario> opt = usuarioRepo.findByEmail(email);
 
@@ -93,6 +102,19 @@ public class AuthService {
             UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
             u = principal.getUsuario();
 
+            if (u.isTotpEnabled()) {
+                if (totpCode == null || totpCode.isBlank()) {
+                    // Password was correct — ask the client for the second factor.
+                    throw new UnauthorizedException("TOTP_REQUIRED",
+                        "Informe o código do autenticador (2FA).");
+                }
+                if (!totpService.verifyCode(u.getTotpSecret(), totpCode)) {
+                    audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
+                        "Código 2FA inválido", AuditService.getClientIp(request));
+                    throw new UnauthorizedException("TOTP_INVALID", "Código 2FA inválido.");
+                }
+            }
+
             u.setFailedLoginAttempts(0);
             u.setLockedUntil(null);
             u.setUltimoLogin(LocalDateTime.now());
@@ -104,7 +126,11 @@ public class AuthService {
             audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN", "AUTH", null,
                 "Login bem-sucedido", AuditService.getClientIp(request));
 
-            return buildResponse(u, accessToken, refreshToken);
+            TokenResponseDTO response = buildResponse(u, accessToken, refreshToken);
+            if (!u.isTotpEnabled() && config.getBool(u.getEmpresaId(), "seguranca.2fa.obrigatorio")) {
+                response.setTwoFactorSetupRequired(true);
+            }
+            return response;
         } catch (BadCredentialsException e) {
             handleFailedAttempt(u, request);
             throw new UnauthorizedException("BAD_CREDENTIALS", "Email ou senha incorretos.");

@@ -65,12 +65,14 @@ public class AuthController {
         description = "Retorna access + refresh tokens. Aplica lockout após múltiplas falhas.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Login bem-sucedido"),
-        @ApiResponse(responseCode = "401", description = "Email ou senha incorretos"),
+        @ApiResponse(responseCode = "401",
+            description = "Email/senha incorretos, ou 2FA pendente (TOTP_REQUIRED) / inválido (TOTP_INVALID)"),
         @ApiResponse(responseCode = "403", description = "Conta bloqueada por excesso de tentativas")
     })
     public ResponseEntity<TokenResponseDTO> login(@Valid @RequestBody LoginRequestDTO request,
                                                   HttpServletRequest httpRequest) {
-        return ResponseEntity.ok(authService.login(request.getEmail(), request.getSenha(), httpRequest));
+        return ResponseEntity.ok(
+            authService.login(request.getEmail(), request.getSenha(), request.getTotpCode(), httpRequest));
     }
 
     @PostMapping("/refresh")

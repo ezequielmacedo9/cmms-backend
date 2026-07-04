@@ -25,8 +25,15 @@ public class LoginRequestDTO {
     @Schema(example = "minhaSenhaSegura123")
     private String senha;
 
+    /** Código TOTP — obrigatório apenas quando o usuário tem 2FA habilitado. */
+    @Size(max = 8, message = "Código 2FA inválido.")
+    @Schema(example = "123456", description = "Código do autenticador (se 2FA ativo).")
+    private String totpCode;
+
     public String getEmail() { return email; }
     public String getSenha() { return senha; }
+    public String getTotpCode() { return totpCode; }
     public void setEmail(String email) { this.email = email; }
     public void setSenha(String senha) { this.senha = senha; }
+    public void setTotpCode(String totpCode) { this.totpCode = totpCode; }
 }

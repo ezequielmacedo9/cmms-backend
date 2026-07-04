@@ -60,6 +60,7 @@ class AuthServiceTest {
     @Mock UsuarioRepository usuarioRepo;
     @Mock ConfiguracaoService config;
     @Mock AuditService audit;
+    @Mock TotpService totpService;
     @Mock HttpServletRequest request;
 
     @InjectMocks AuthService authService;
@@ -85,7 +86,7 @@ class AuthServiceTest {
     void login_userNotFound_throwsUnauthorized() {
         when(usuarioRepo.findByEmail("ghost@cmms.app")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> authService.login("ghost@cmms.app", "x", request))
+        assertThatThrownBy(() -> authService.login("ghost@cmms.app", "x", null, request))
             .isInstanceOf(UnauthorizedException.class)
             .extracting("errorCode").isEqualTo("BAD_CREDENTIALS");
 
@@ -99,7 +100,7 @@ class AuthServiceTest {
         activeUser.setLockedUntil(LocalDateTime.now().plusMinutes(10));
         when(usuarioRepo.findByEmail(activeUser.getEmail())).thenReturn(Optional.of(activeUser));
 
-        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "x", request))
+        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "x", null, request))
             .isInstanceOf(ForbiddenException.class)
             .extracting("errorCode").isEqualTo("ACCOUNT_LOCKED");
 
@@ -120,7 +121,7 @@ class AuthServiceTest {
         rt.setToken("REFRESH");
         when(refreshTokenService.criarRefreshToken(activeUser)).thenReturn(rt);
 
-        TokenResponseDTO out = authService.login(activeUser.getEmail(), "ok", request);
+        TokenResponseDTO out = authService.login(activeUser.getEmail(), "ok", null, request);
 
         assertThat(out.getAccessToken()).isEqualTo("ACCESS");
         assertThat(out.getRefreshToken()).isEqualTo("REFRESH");
@@ -137,13 +138,86 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("login: 2FA ativo sem codigo devolve TOTP_REQUIRED (senha ja validada)")
+    void login_totpEnabled_semCodigo_pedeTotp() {
+        activeUser.setTotpEnabled(true);
+        activeUser.setTotpSecret("SECRET");
+        stubPasswordOk();
+
+        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "ok", null, request))
+            .isInstanceOf(UnauthorizedException.class)
+            .extracting("errorCode").isEqualTo("TOTP_REQUIRED");
+
+        verify(jwtService, never()).gerarToken(any());
+    }
+
+    @Test
+    @DisplayName("login: 2FA ativo com codigo errado devolve TOTP_INVALID e audita")
+    void login_totpEnabled_codigoInvalido() {
+        activeUser.setTotpEnabled(true);
+        activeUser.setTotpSecret("SECRET");
+        stubPasswordOk();
+        when(totpService.verifyCode("SECRET", "000000")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "ok", "000000", request))
+            .isInstanceOf(UnauthorizedException.class)
+            .extracting("errorCode").isEqualTo("TOTP_INVALID");
+
+        verify(jwtService, never()).gerarToken(any());
+        verify(audit).log(any(), eq(activeUser.getEmail()), any(), eq("LOGIN_FAILED"),
+                          eq("AUTH"), any(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("login: 2FA ativo com codigo correto emite tokens")
+    void login_totpEnabled_codigoValido() {
+        activeUser.setTotpEnabled(true);
+        activeUser.setTotpSecret("SECRET");
+        stubPasswordOk();
+        when(totpService.verifyCode("SECRET", "123456")).thenReturn(true);
+        when(jwtService.gerarToken(activeUser)).thenReturn("ACCESS");
+        RefreshToken rt = new RefreshToken();
+        rt.setToken("REFRESH");
+        when(refreshTokenService.criarRefreshToken(activeUser)).thenReturn(rt);
+
+        TokenResponseDTO out = authService.login(activeUser.getEmail(), "ok", "123456", request);
+
+        assertThat(out.getAccessToken()).isEqualTo("ACCESS");
+        assertThat(out.isTwoFactorSetupRequired()).isFalse();
+    }
+
+    @Test
+    @DisplayName("login: empresa exige 2FA e usuario nao aderiu -> twoFactorSetupRequired=true")
+    void login_2faObrigatorio_semAdesao_sinalizaSetup() {
+        stubPasswordOk();
+        when(jwtService.gerarToken(activeUser)).thenReturn("ACCESS");
+        RefreshToken rt = new RefreshToken();
+        rt.setToken("REFRESH");
+        when(refreshTokenService.criarRefreshToken(activeUser)).thenReturn(rt);
+        when(config.getBool(nullable(Long.class), eq("seguranca.2fa.obrigatorio"))).thenReturn(true);
+
+        TokenResponseDTO out = authService.login(activeUser.getEmail(), "ok", null, request);
+
+        assertThat(out.getAccessToken()).isEqualTo("ACCESS");
+        assertThat(out.isTwoFactorSetupRequired()).isTrue();
+    }
+
+    /** Stubs findByEmail + password authentication success for {@code activeUser}. */
+    private void stubPasswordOk() {
+        when(usuarioRepo.findByEmail(activeUser.getEmail())).thenReturn(Optional.of(activeUser));
+        UserDetailsImpl principal = new UserDetailsImpl(activeUser);
+        Authentication auth = new UsernamePasswordAuthenticationToken(principal, null);
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+    }
+
+    @Test
     @DisplayName("login: BadCredentials incrementa contador sem bloquear ainda")
     void login_badCredentials_incrementsCounter() {
         when(usuarioRepo.findByEmail(activeUser.getEmail())).thenReturn(Optional.of(activeUser));
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("nope"));
         when(config.getInt(nullable(Long.class), eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
 
-        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "wrong", request))
+        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "wrong", null, request))
             .isInstanceOf(UnauthorizedException.class)
             .extracting("errorCode").isEqualTo("BAD_CREDENTIALS");
 
@@ -165,7 +239,7 @@ class AuthServiceTest {
         when(config.getInt(nullable(Long.class), eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
         when(config.getInt(nullable(Long.class), eq("seguranca.lockout.minutos"), anyInt())).thenReturn(15);
 
-        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "wrong", request))
+        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "wrong", null, request))
             .isInstanceOf(UnauthorizedException.class);
 
         ArgumentCaptor<Usuario> saved = ArgumentCaptor.forClass(Usuario.class);

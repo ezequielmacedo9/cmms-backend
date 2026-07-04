@@ -7,6 +7,12 @@ public class TokenResponseDTO {
     private String nome;
     private Long userId;
 
+    /**
+     * True when the empresa requires 2FA (seguranca.2fa.obrigatorio) but this
+     * user hasn't enrolled yet — the client should push them to the setup flow.
+     */
+    private boolean twoFactorSetupRequired;
+
     public TokenResponseDTO(String accessToken, String refreshToken, String role, String nome, Long userId) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
@@ -20,4 +26,6 @@ public class TokenResponseDTO {
     public String getRole() { return role; }
     public String getNome() { return nome; }
     public Long getUserId() { return userId; }
+    public boolean isTwoFactorSetupRequired() { return twoFactorSetupRequired; }
+    public void setTwoFactorSetupRequired(boolean twoFactorSetupRequired) { this.twoFactorSetupRequired = twoFactorSetupRequired; }
 }
