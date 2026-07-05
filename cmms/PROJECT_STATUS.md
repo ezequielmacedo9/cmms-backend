@@ -46,11 +46,11 @@
 - **FASE 10.3 (cobertura 80%) CONCLUÍDA** — JaCoCo 42.5% → **80.7%** de instruções, 148 testes. Novos: `OperationalFlowIntegrationTest` (perfil, 2FA E2E com código RFC 6238 real, checklist/anexos via HTTP, relatórios PDF/XLSX, QR), smoke dos geradores de relatório, `PasswordResetServiceTest`, `RefreshTokenServiceTest`, `EmailServiceTest`, `RateLimitFilterTest`, `NotificationServiceTest`. Bônus: o teste E2E pegou bug no frontend (envelope usa `code`, não `errorCode`) — corrigido
 - **Scanner de QR in-app** — `QrScannerComponent` (getUserMedia câmera traseira + decode com **jsQR 1.4.0 importado dinamicamente**, chunk lazy fora do bundle inicial); botão "Escanear" em máquinas aceita URL de deep-link ou id numérico, foca a máquina e abre o histórico; trata permissão negada e encerra a MediaStream
 - **Reactive forms + validação inline** — os 4 formulários de entidade (máquinas, OS, estoque, convite de usuário) migrados de ngModel para `FormGroup` tipado (`NonNullableFormBuilder`) com `mat-error`/`.field-error` por campo, `markAllAsTouched` no submit inválido e merge com o registro original ao editar; senha do convite alinhada à política do backend (mín. 8)
-- **i18n (pt/en/es) CONCLUÍDO** — i18n em runtime: chave = texto pt-BR (fallback natural), dicionários en/es (~380 chaves) carregados por dynamic import no `APP_INITIALIZER` (fora do bundle em pt); troca de idioma persiste em localStorage + reload (pipe `t` puro, zero custo de CD); seletores de idioma na sidebar e no login; **100% dos templates** convertidos (shell, dashboard, máquinas, OS com checklist/anexos, estoque, usuários, settings, relatórios, billing, perfil com fluxo 2FA, auditoria, login/cadastro/senha, 404/403, scanner QR); mensagens de erro setadas em TS (errorMessage/error) passam pelo pipe no template
+- **i18n (pt/en/es) CONCLUÍDO** — i18n em runtime: chave = texto pt-BR (fallback natural), dicionários en/es (**~500 chaves**) carregados por dynamic import no `APP_INITIALIZER` (fora do bundle em pt); troca de idioma persiste em localStorage + reload (pipe `t` puro, zero custo de CD); seletores de idioma na sidebar e no login; **100% dos templates** convertidos (shell, dashboard, máquinas, OS com checklist/anexos, estoque, usuários, settings, relatórios, billing, perfil com fluxo 2FA, auditoria, login/cadastro/senha, 404/403, scanner QR); **mensagens de runtime também traduzidas** — `ToastService.show`/`NotificationService.push` traduzem no funil único (todos os ~70 toasts + painel de notificações), diálogos de confirmação, tour de onboarding e painel de atalhos
 
 **Estado atual:**
-- Backend: 148 testes, cobertura 80.7%, BUILD SUCCESS, zero warnings, HEAD `88c8dc2`
-- Frontend: 11 suites verdes, prod build OK, zero warnings, HEAD `9a39d03`
+- Backend: 148 testes, cobertura 80.7%, BUILD SUCCESS, zero warnings, HEAD `f6c5ef4`
+- Frontend: 11 suites verdes, prod build OK, zero warnings, HEAD `6ed7e7a`
 - **ROADMAP DE CÓDIGO 100% CONCLUÍDO** — resta apenas o que depende de credenciais/infra externa
 - Resolvidas: CSS morto; SW /api; drift @angular/*; CI sem `--legacy-peer-deps`; PDF multipágina; custo/MTTR; jjwt
 
@@ -82,7 +82,7 @@ Backend: https://github.com/ezequielmacedo9/cmms-backend (Spring Boot 3.5.9 + Ja
 Frontend: https://github.com/ezequielmacedo9/cmms-frontend (Angular 21 + standalone + signals)
 Paths: C:\Users\USER\cmms-backend e C:\Users\USER\cmms-frontend
 
-ESTADO: 148 testes backend / cobertura 80.7% (HEAD 88c8dc2), 11 suites frontend (HEAD 9a39d03), BUILD SUCCESS, zero warnings. ROADMAP DE CODIGO 100% CONCLUIDO.
+ESTADO: 148 testes backend / cobertura 80.7% (HEAD f6c5ef4), 11 suites frontend (HEAD 6ed7e7a), BUILD SUCCESS, zero warnings. ROADMAP DE CODIGO 100% CONCLUIDO (incl. i18n de runtime: toasts, dialogos, tour, atalhos).
 
 ROADMAP IMPLEMENTAVEL CONCLUIDO. Fases entregues (todas com build verde + push):
 - FASE 11: TableState/ExportService/ConfirmDialog/tour/ShortcutsHelp.
