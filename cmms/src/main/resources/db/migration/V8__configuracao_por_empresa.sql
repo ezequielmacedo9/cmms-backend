@@ -21,6 +21,13 @@ DELETE FROM configuracao_sistema WHERE empresa_id IS NULL;
 
 ALTER TABLE configuracao_sistema ALTER COLUMN empresa_id SET NOT NULL;
 ALTER TABLE configuracao_sistema ALTER COLUMN chave SET NOT NULL;
+
+-- Drop-then-add keeps the script re-runnable against legacy/partial schemas
+-- (same hardening pattern as V4).
+ALTER TABLE configuracao_sistema DROP CONSTRAINT IF EXISTS configuracao_sistema_pkey;
+ALTER TABLE configuracao_sistema DROP CONSTRAINT IF EXISTS uq_config_empresa_chave;
+ALTER TABLE configuracao_sistema DROP CONSTRAINT IF EXISTS fk_config_empresa;
+
 ALTER TABLE configuracao_sistema ADD CONSTRAINT configuracao_sistema_pkey PRIMARY KEY (id);
 ALTER TABLE configuracao_sistema
     ADD CONSTRAINT uq_config_empresa_chave UNIQUE (empresa_id, chave);
