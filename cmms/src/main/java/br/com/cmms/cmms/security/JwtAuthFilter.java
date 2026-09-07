@@ -65,6 +65,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // resolved so RefreshTokenService knows whose tokens to revoke.
         if (path.equals("/api/auth/logout")) return false;
         return path.equals("/ping")
+            || path.equals("/api/health")
             || path.equals("/error")
             || path.startsWith("/api/auth")
             || path.startsWith("/h2-console")

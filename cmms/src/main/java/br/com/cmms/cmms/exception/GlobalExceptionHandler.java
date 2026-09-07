@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -53,6 +54,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NotFoundException ex, HttpServletRequest req) {
         return respond(HttpStatus.NOT_FOUND, ex.getErrorCode(), ex.getMessage(), req, null, ex, false);
+    }
+
+    /**
+     * Rota inexistente. Sem este handler a excecao caia no fallback
+     * {@code Exception.class} e virava 500 INTERNAL_ERROR — um path digitado
+     * errado aparecia como falha do servidor, poluindo log e monitoramento
+     * (foi assim que {@code GET /api/audit-logs} se disfarcou de erro 500).
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex, HttpServletRequest req) {
+        return respond(HttpStatus.NOT_FOUND, "NOT_FOUND",
+            "Recurso nao encontrado.", req, null, ex, false);
     }
 
     @ExceptionHandler(ConflictException.class)
