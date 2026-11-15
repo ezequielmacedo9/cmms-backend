@@ -78,7 +78,10 @@ public class AuthService {
      * @throws ForbiddenException    when the account is currently locked
      * @throws UnauthorizedException when the credentials don't match (or the user doesn't exist)
      */
-    @Transactional
+    // noRollbackFor: a failed attempt must still commit the incremented counter
+    // and the lockout timestamp. With the default rollback rules the exception
+    // that reports the failure would also undo it, so the account never locked.
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public TokenResponseDTO login(String email, String senha, String totpCode, HttpServletRequest request) {
         log.info("Login attempt: {}", email);
         Optional<Usuario> opt = usuarioRepo.findByEmail(email);
@@ -89,52 +92,80 @@ public class AuthService {
         }
 
         Usuario u = opt.get();
-
-        if (!u.isAccountNonLocked()) {
-            throw new ForbiddenException("ACCOUNT_LOCKED",
-                "Conta bloqueada. Tente novamente em alguns minutos.");
-        }
+        assertNaoBloqueada(u);
 
         try {
             Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(email, senha)
             );
-            UserDetailsImpl principal = (UserDetailsImpl) auth.getPrincipal();
-            u = principal.getUsuario();
-
-            if (u.isTotpEnabled()) {
-                if (totpCode == null || totpCode.isBlank()) {
-                    // Password was correct — ask the client for the second factor.
-                    throw new UnauthorizedException("TOTP_REQUIRED",
-                        "Informe o código do autenticador (2FA).");
-                }
-                if (!totpService.verifyCode(u.getTotpSecret(), totpCode)) {
-                    audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
-                        "Código 2FA inválido", AuditService.getClientIp(request));
-                    throw new UnauthorizedException("TOTP_INVALID", "Código 2FA inválido.");
-                }
-            }
-
-            u.setFailedLoginAttempts(0);
-            u.setLockedUntil(null);
-            u.setUltimoLogin(LocalDateTime.now());
-            usuarioRepo.save(u);
-
-            String accessToken  = jwtService.gerarToken(u);
-            String refreshToken = refreshTokenService.criarRefreshToken(u).getToken();
-
-            audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN", "AUTH", null,
-                "Login bem-sucedido", AuditService.getClientIp(request));
-
-            TokenResponseDTO response = buildResponse(u, accessToken, refreshToken);
-            if (!u.isTotpEnabled() && config.getBool(u.getEmpresaId(), "seguranca.2fa.obrigatorio")) {
-                response.setTwoFactorSetupRequired(true);
-            }
-            return response;
+            u = ((UserDetailsImpl) auth.getPrincipal()).getUsuario();
         } catch (BadCredentialsException e) {
-            handleFailedAttempt(u, request);
+            handleFailedAttempt(u, request, "Senha incorreta");
             throw new UnauthorizedException("BAD_CREDENTIALS", "Email ou senha incorretos.");
         }
+
+        verificarSegundoFator(u, totpCode, request);
+        return concluirLogin(u, "LOGIN", "Login bem-sucedido", request);
+    }
+
+    /**
+     * Refuses an account that is currently locked. Shared by every login flow.
+     *
+     * @throws ForbiddenException when the lockout window is still open
+     */
+    public void assertNaoBloqueada(Usuario u) {
+        if (!u.isAccountNonLocked()) {
+            throw new ForbiddenException("ACCOUNT_LOCKED",
+                "Conta bloqueada. Tente novamente em alguns minutos.");
+        }
+    }
+
+    /**
+     * Second-factor gate shared by the password and Google flows. When the
+     * user has TOTP enabled, a missing code returns {@code TOTP_REQUIRED} and a
+     * wrong one counts as a failed attempt.
+     *
+     * <p>Not transactional on purpose: it runs inside the caller's transaction,
+     * whose {@code noRollbackFor} keeps the failed-attempt counter written here.
+     */
+    public void verificarSegundoFator(Usuario u, String totpCode, HttpServletRequest request) {
+        if (!u.isTotpEnabled()) {
+            return;
+        }
+        if (totpCode == null || totpCode.isBlank()) {
+            // First factor was fine — ask the client for the second one.
+            throw new UnauthorizedException("TOTP_REQUIRED", "Informe o código do autenticador (2FA).");
+        }
+        if (!totpService.verifyCode(u.getTotpSecret(), totpCode)) {
+            // A wrong code counts toward lockout, otherwise a leaked
+            // password lets an attacker brute-force the 6 digits.
+            handleFailedAttempt(u, request, "Código 2FA inválido");
+            throw new UnauthorizedException("TOTP_INVALID", "Código 2FA inválido.");
+        }
+    }
+
+    /**
+     * Successful-login bookkeeping shared by every flow: resets the lockout
+     * counters, stamps the last login, issues access + refresh tokens, audits
+     * and flags {@code twoFactorSetupRequired} when the empresa enforces 2FA.
+     */
+    public TokenResponseDTO concluirLogin(Usuario u, String acao, String detalhe, HttpServletRequest request) {
+        u.setFailedLoginAttempts(0);
+        u.setLockedUntil(null);
+        u.setUltimoLogin(LocalDateTime.now());
+        usuarioRepo.save(u);
+
+        String accessToken  = jwtService.gerarToken(u);
+        String refreshToken = refreshTokenService.criarRefreshToken(u).getToken();
+
+        audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), acao, "AUTH", null,
+            detalhe, AuditService.getClientIp(request));
+
+        TokenResponseDTO response = buildResponse(u, accessToken, refreshToken);
+        if (!u.isTotpEnabled() && config.getBool(u.getEmpresaId(), "seguranca.2fa.obrigatorio")) {
+            response.setTwoFactorSetupRequired(true);
+        }
+        return response;
     }
 
     /**
@@ -174,7 +205,7 @@ public class AuthService {
 
     // ── helpers ──────────────────────────────────────────────────────────
 
-    private void handleFailedAttempt(Usuario u, HttpServletRequest request) {
+    private void handleFailedAttempt(Usuario u, HttpServletRequest request, String motivo) {
         int attempts = u.getFailedLoginAttempts() + 1;
         int maxAttempts = config.getInt(u.getEmpresaId(), "seguranca.lockout.tentativas", DEFAULT_LOCKOUT_ATTEMPTS);
         u.setFailedLoginAttempts(attempts);
@@ -188,7 +219,7 @@ public class AuthService {
         usuarioRepo.save(u);
         String ip = AuditService.getClientIp(request);
         audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
-            "Tentativa " + attempts, ip);
+            motivo + " (tentativa " + attempts + ")", ip);
         if (lockedNow) {
             // Separate event so security dashboards can alert on lockouts
             // without trawling failed-login noise.

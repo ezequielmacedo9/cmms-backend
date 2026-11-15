@@ -65,22 +65,38 @@ class RateLimitFilterTest {
     }
 
     @Test
-    @DisplayName("X-Forwarded-For define o bucket (primeiro IP da cadeia)")
-    void xForwardedFor_defineBucket() throws Exception {
+    @DisplayName("trocar o X-Forwarded-For a cada request nao gera bucket novo")
+    void doFilter_rotatingXForwardedFor_keepsSameBucket() throws Exception {
         for (int i = 0; i < 3; i++) {
-            MockHttpServletRequest req = request("POST", "/api/auth/forgot-password", "127.0.0.1");
-            req.addHeader("X-Forwarded-For", "200.1.2.3, 10.0.0.1");
+            MockHttpServletRequest req = request("POST", "/api/auth/forgot-password", "127.0.0.5");
+            req.addHeader("X-Forwarded-For", "200.1.2." + i);
             filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
         }
-        MockHttpServletRequest req = request("POST", "/api/auth/forgot-password", "127.0.0.1");
-        req.addHeader("X-Forwarded-For", "200.1.2.3, 10.0.0.1");
+        MockHttpServletRequest req = request("POST", "/api/auth/forgot-password", "127.0.0.5");
+        req.addHeader("X-Forwarded-For", "200.1.2.99");
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        filter.doFilter(req, res, new MockFilterChain());
+
+        assertThat(res.getStatus()).isEqualTo(429);
+    }
+
+    @Test
+    @DisplayName("True-Client-IP (Cloudflare do Render) define o bucket de cada cliente")
+    void doFilter_trueClientIp_definesBucket() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            MockHttpServletRequest req = request("POST", "/api/auth/forgot-password", "10.0.0.9");
+            req.addHeader("True-Client-IP", "200.1.2.3");
+            filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+        }
+        MockHttpServletRequest req = request("POST", "/api/auth/forgot-password", "10.0.0.9");
+        req.addHeader("True-Client-IP", "200.1.2.3");
         MockHttpServletResponse res = new MockHttpServletResponse();
         filter.doFilter(req, res, new MockFilterChain());
         assertThat(res.getStatus()).isEqualTo(429);
 
-        // Mesmo remoteAddr mas outro cliente atras do proxy: bucket proprio.
-        MockHttpServletRequest outro = request("POST", "/api/auth/forgot-password", "127.0.0.1");
-        outro.addHeader("X-Forwarded-For", "200.9.9.9");
+        // Same edge address, different real client: its own budget.
+        MockHttpServletRequest outro = request("POST", "/api/auth/forgot-password", "10.0.0.9");
+        outro.addHeader("True-Client-IP", "200.9.9.9");
         MockHttpServletResponse resOutro = new MockHttpServletResponse();
         filter.doFilter(outro, resOutro, new MockFilterChain());
         assertThat(resOutro.getStatus()).isEqualTo(200);

@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -90,14 +91,15 @@ public class AuthController {
     @PostMapping("/google")
     @SecurityRequirements
     @Operation(summary = "Login via Google OAuth",
-        description = "Valida o id_token do Google e cria/atualiza o usuário local.")
+        description = "Valida o id_token do Google (audience = GOOGLE_CLIENT_ID, e-mail verificado) "
+                    + "e cria/atualiza o usuário local. Com 2FA ativo, reenviar com totpCode.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Login com Google bem-sucedido"),
-        @ApiResponse(responseCode = "401", description = "id_token inválido")
+        @ApiResponse(responseCode = "401", description = "id_token inválido ou TOTP_REQUIRED / TOTP_INVALID")
     })
     public ResponseEntity<TokenResponseDTO> googleLogin(@Valid @RequestBody GoogleLoginRequest body,
                                                         HttpServletRequest request) {
-        return ResponseEntity.ok(googleAuthService.loginWithGoogle(body.idToken(), request));
+        return ResponseEntity.ok(googleAuthService.loginWithGoogle(body.idToken(), body.totpCode(), request));
     }
 
     @PostMapping("/logout")
@@ -115,5 +117,5 @@ public class AuthController {
     }
 
     public record RefreshRequest(@NotBlank String refreshToken) {}
-    public record GoogleLoginRequest(@NotBlank String idToken) {}
+    public record GoogleLoginRequest(@NotBlank String idToken, @Size(max = 10) String totpCode) {}
 }

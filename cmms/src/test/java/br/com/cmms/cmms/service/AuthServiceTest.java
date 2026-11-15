@@ -169,6 +169,25 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("login: codigo 2FA errado conta como tentativa falha (protege contra forca bruta)")
+    void login_totpInvalid_incrementsFailedAttempts() {
+        activeUser.setTotpEnabled(true);
+        activeUser.setTotpSecret("SECRET");
+        stubPasswordOk();
+        when(totpService.verifyCode("SECRET", "000000")).thenReturn(false);
+        when(config.getInt(nullable(Long.class), eq("seguranca.lockout.tentativas"), anyInt())).thenReturn(5);
+
+        assertThatThrownBy(() -> authService.login(activeUser.getEmail(), "ok", "000000", request))
+            .isInstanceOf(UnauthorizedException.class)
+            .extracting("errorCode").isEqualTo("TOTP_INVALID");
+
+        ArgumentCaptor<Usuario> saved = ArgumentCaptor.forClass(Usuario.class);
+        verify(usuarioRepo).save(saved.capture());
+        assertThat(saved.getValue().getFailedLoginAttempts()).isEqualTo(1);
+        assertThat(saved.getValue().getLockedUntil()).isNull();
+    }
+
+    @Test
     @DisplayName("login: 2FA ativo com codigo correto emite tokens")
     void login_totpEnabled_codigoValido() {
         activeUser.setTotpEnabled(true);

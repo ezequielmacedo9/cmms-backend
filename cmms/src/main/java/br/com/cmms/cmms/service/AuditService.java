@@ -2,6 +2,7 @@ package br.com.cmms.cmms.service;
 
 import br.com.cmms.cmms.model.AuditLog;
 import br.com.cmms.cmms.repository.AuditLogRepository;
+import br.com.cmms.cmms.security.ClientIpResolver;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -24,9 +25,8 @@ public class AuditService {
         log(empresaId, userEmail, userId, acao, recurso, null, detalhes, ip);
     }
 
+    /** Client IP recorded in the audit trail; same source of truth as the rate limiter. */
     public static String getClientIp(HttpServletRequest request) {
-        String xff = request.getHeader("X-Forwarded-For");
-        if (xff != null && !xff.isBlank()) return xff.split(",")[0].trim();
-        return request.getRemoteAddr();
+        return ClientIpResolver.resolve(request);
     }
 }
