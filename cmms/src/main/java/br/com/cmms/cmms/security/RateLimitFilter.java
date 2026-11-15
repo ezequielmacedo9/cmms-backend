@@ -97,7 +97,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
 
-        String ip = clientIp(request);
+        String ip = ClientIpResolver.resolve(request);
         Bucket bucket = buckets.get(new BucketKey(policy.name(), ip), k -> newBucket(policy));
         Objects.requireNonNull(bucket, "bucket");
 
@@ -122,20 +122,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static Predicate<HttpServletRequest> matches(String method, String path) {
         return req -> method.equalsIgnoreCase(req.getMethod()) && path.equals(req.getServletPath());
-    }
-
-    /**
-     * Extracts the originating client IP. We only trust {@code X-Forwarded-For}
-     * when the {@code app.proxy.trusted} flag is on (set in prod where the
-     * platform — Render, Vercel, Cloudflare — sits in front and always sets
-     * the header). In other environments fall back to the socket address.
-     */
-    private static String clientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
     }
 
     private void writeTooMany(HttpServletRequest request, HttpServletResponse response, Policy policy)

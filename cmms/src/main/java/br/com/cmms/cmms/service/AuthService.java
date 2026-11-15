@@ -78,7 +78,10 @@ public class AuthService {
      * @throws ForbiddenException    when the account is currently locked
      * @throws UnauthorizedException when the credentials don't match (or the user doesn't exist)
      */
-    @Transactional
+    // noRollbackFor: a failed attempt must still commit the incremented counter
+    // and the lockout timestamp. With the default rollback rules the exception
+    // that reports the failure would also undo it, so the account never locked.
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public TokenResponseDTO login(String email, String senha, String totpCode, HttpServletRequest request) {
         log.info("Login attempt: {}", email);
         Optional<Usuario> opt = usuarioRepo.findByEmail(email);
@@ -109,8 +112,9 @@ public class AuthService {
                         "Informe o código do autenticador (2FA).");
                 }
                 if (!totpService.verifyCode(u.getTotpSecret(), totpCode)) {
-                    audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
-                        "Código 2FA inválido", AuditService.getClientIp(request));
+                    // A wrong code counts toward lockout, otherwise a leaked
+                    // password lets an attacker brute-force the 6 digits.
+                    handleFailedAttempt(u, request, "Código 2FA inválido");
                     throw new UnauthorizedException("TOTP_INVALID", "Código 2FA inválido.");
                 }
             }
@@ -132,7 +136,7 @@ public class AuthService {
             }
             return response;
         } catch (BadCredentialsException e) {
-            handleFailedAttempt(u, request);
+            handleFailedAttempt(u, request, "Senha incorreta");
             throw new UnauthorizedException("BAD_CREDENTIALS", "Email ou senha incorretos.");
         }
     }
@@ -174,7 +178,7 @@ public class AuthService {
 
     // ── helpers ──────────────────────────────────────────────────────────
 
-    private void handleFailedAttempt(Usuario u, HttpServletRequest request) {
+    private void handleFailedAttempt(Usuario u, HttpServletRequest request, String motivo) {
         int attempts = u.getFailedLoginAttempts() + 1;
         int maxAttempts = config.getInt(u.getEmpresaId(), "seguranca.lockout.tentativas", DEFAULT_LOCKOUT_ATTEMPTS);
         u.setFailedLoginAttempts(attempts);
@@ -188,7 +192,7 @@ public class AuthService {
         usuarioRepo.save(u);
         String ip = AuditService.getClientIp(request);
         audit.log(u.getEmpresaId(), u.getEmail(), u.getId(), "LOGIN_FAILED", "AUTH", null,
-            "Tentativa " + attempts, ip);
+            motivo + " (tentativa " + attempts + ")", ip);
         if (lockedNow) {
             // Separate event so security dashboards can alert on lockouts
             // without trawling failed-login noise.
